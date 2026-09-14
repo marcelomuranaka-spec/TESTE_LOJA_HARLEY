@@ -1,0 +1,20 @@
+assets/external/
+.web
+.states
+*.py[cod]
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Gerado pelo Reflex a cada build (frontend Next.js compilado)
+.web/
+
+# Banco de dados local — cada instalação tem o seu
+*.db
+*.db-journal
+
+.env
+
+*.log
