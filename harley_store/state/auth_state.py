@@ -34,7 +34,7 @@ class AuthState(rx.State):
     # Guarda o nome do usuário logado (só pra exibição); "" significa deslogado.
     usuario_logado: str = rx.Cookie("", name="hs_usuario")
     auth_token: str = rx.Cookie("", name="hs_auth_token")
-    auth_user_id: str = rx.Cookie("", name="hs_auth_user_id")
+    auth_user_id: str = rx.Cookie("", name="hs_auth_user_id_v2")
 
     # Campos do formulário de login
     login_email: str = ""

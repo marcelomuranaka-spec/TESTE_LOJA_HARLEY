@@ -43,6 +43,16 @@ app = rx.App(
         gray_color="sand",
         radius="medium",
     ),
+    # Tags de PWA — permitem instalar o app na tela de início do iPhone
+    # (Safari > Compartilhar > "Adicionar à Tela de Início").
+    head_components=[
+        rx.el.link(rel="manifest", href="/manifest.json"),
+        rx.el.link(rel="apple-touch-icon", href="/icons/apple-touch-icon.png"),
+        rx.el.meta(name="theme-color", content="#c2410c"),
+        rx.el.meta(name="apple-mobile-web-app-capable", content="yes"),
+        rx.el.meta(name="apple-mobile-web-app-status-bar-style", content="black-translucent"),
+        rx.el.meta(name="apple-mobile-web-app-title", content="Harley Store"),
+    ],
 )
 
 app.add_page(
