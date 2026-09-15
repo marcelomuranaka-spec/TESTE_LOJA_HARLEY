@@ -21,8 +21,8 @@ class FuncionariosState(rx.State):
     contato: str = ""
 
     @rx.event
-    def carregar(self):
-        registros = xano.listar(TABELA)
+    async def carregar(self):
+        registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
             registros = [r for r in registros if termo in r["nome_funcionario"].lower()]
@@ -39,9 +39,9 @@ class FuncionariosState(rx.State):
         ]
 
     @rx.event
-    def definir_busca(self, valor: str):
+    async def definir_busca(self, valor: str):
         self.busca = valor
-        self.carregar()
+        await self.carregar()
 
     @rx.event
     def novo(self):
@@ -60,7 +60,7 @@ class FuncionariosState(rx.State):
         self.contato = "" if row["contato"] == "—" else row["contato"]
 
     @rx.event
-    def salvar(self):
+    async def salvar(self):
         nome = self.nome_funcionario.strip()
         cargo = self.cargo.strip()
         if not nome or not cargo:
@@ -73,14 +73,14 @@ class FuncionariosState(rx.State):
             "contato": self.contato.strip() or None,
         }
         if self.form_id is None:
-            xano.criar(TABELA, dados)
+            await xano.criar(TABELA, dados)
         else:
-            xano.atualizar(TABELA, self.form_id, dados)
+            await xano.atualizar(TABELA, self.form_id, dados)
 
         self.novo()
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def excluir(self, funcionario_id: str):
-        xano.excluir(TABELA, int(funcionario_id))
-        self.carregar()
+    async def excluir(self, funcionario_id: str):
+        await xano.excluir(TABELA, int(funcionario_id))
+        await self.carregar()

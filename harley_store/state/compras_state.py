@@ -40,9 +40,9 @@ class ComprasState(rx.State):
         return f"{total:.2f}"
 
     @rx.event
-    def carregar(self):
-        fornecedores = sorted(xano.listar(TABELA_FORNECEDORES), key=lambda f: f["nome_fornecedor"])
-        produtos = sorted(xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
+    async def carregar(self):
+        fornecedores = sorted(await xano.listar(TABELA_FORNECEDORES), key=lambda f: f["nome_fornecedor"])
+        produtos = sorted(await xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
         self.fornecedores_opcoes = [f"{f['id']} - {f['nome_fornecedor']}" for f in fornecedores]
         self.produtos_opcoes = [f"{p['id']} - {p['nome_produto']}" for p in produtos]
         if not self.fornecedor_selecionado and self.fornecedores_opcoes:
@@ -52,9 +52,9 @@ class ComprasState(rx.State):
 
         nomes_fornecedor = {f["id"]: f["nome_fornecedor"] for f in fornecedores}
 
-        entradas = sorted(xano.listar(TABELA_ENTRADA), key=lambda e: e["data_entrada"], reverse=True)[:30]
+        entradas = sorted(await xano.listar(TABELA_ENTRADA), key=lambda e: e["data_entrada"], reverse=True)[:30]
         qtd_itens_por_entrada: dict[int, int] = {}
-        for item in xano.listar(TABELA_ITENS):
+        for item in await xano.listar(TABELA_ITENS):
             qtd_itens_por_entrada[item["id_entrada"]] = qtd_itens_por_entrada.get(item["id_entrada"], 0) + 1
 
         self.historico = [
@@ -100,7 +100,7 @@ class ComprasState(rx.State):
         self.itens_atual = [item for i, item in enumerate(self.itens_atual) if i != indice]
 
     @rx.event
-    def finalizar_compra(self):
+    async def finalizar_compra(self):
         if not self.fornecedor_selecionado:
             return rx.window_alert("Selecione o fornecedor.")
         if not self.itens_atual:
@@ -109,7 +109,7 @@ class ComprasState(rx.State):
         id_fornecedor = int(self.fornecedor_selecionado.split(" - ")[0])
         total = sum(float(item["subtotal"]) for item in self.itens_atual)
 
-        entrada = xano.criar(
+        entrada = await xano.criar(
             TABELA_ENTRADA,
             {
                 "id_fornecedor": id_fornecedor,
@@ -123,7 +123,7 @@ class ComprasState(rx.State):
             quantidade = int(item["quantidade"])
             valor_unitario = float(item["valor_unitario"])
 
-            xano.criar(
+            await xano.criar(
                 TABELA_ITENS,
                 {
                     "id_entrada": entrada["id"],
@@ -132,20 +132,20 @@ class ComprasState(rx.State):
                     "valor_unitario": valor_unitario,
                 },
             )
-            produto = xano.buscar(TABELA_PRODUTOS, produto_id)
+            produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
             if produto is not None:
                 produto["estoque_qtd"] += quantidade
-                xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
+                await xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
 
         self.itens_atual = []
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def excluir_entrada(self, entrada_id: str):
+    async def excluir_entrada(self, entrada_id: str):
         # Exclui o cabeçalho e os itens da compra. Não desfaz o estoque que
         # já entrou — ajuste manualmente na página Produtos se necessário.
-        for item in xano.listar(TABELA_ITENS):
+        for item in await xano.listar(TABELA_ITENS):
             if item["id_entrada"] == int(entrada_id):
-                xano.excluir(TABELA_ITENS, item["id"])
-        xano.excluir(TABELA_ENTRADA, int(entrada_id))
-        self.carregar()
+                await xano.excluir(TABELA_ITENS, item["id"])
+        await xano.excluir(TABELA_ENTRADA, int(entrada_id))
+        await self.carregar()

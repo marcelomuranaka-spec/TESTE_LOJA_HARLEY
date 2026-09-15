@@ -1,5 +1,6 @@
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..models import STATUS_OS
 from ..state.os_state import OrdensServicoState
@@ -38,12 +39,9 @@ def _linha_os(row: dict) -> rx.Component:
             )
         ),
         rx.table.cell(
-            rx.button(
-                "Excluir",
-                size="1",
-                variant="soft",
-                color_scheme="red",
-                on_click=OrdensServicoState.excluir_os(row["id"]),
+            confirm_delete_button(
+                OrdensServicoState.excluir_os(row["id"]),
+                item_label="esta ordem de serviço",
             )
         ),
     )
@@ -149,7 +147,7 @@ def _formulario() -> rx.Component:
                     spacing="3",
                 ),
             ),
-            rx.button("Abrir OS", on_click=OrdensServicoState.abrir_os, size="3"),
+            rx.button(rx.icon("check", size=16), "Abrir OS", on_click=OrdensServicoState.abrir_os, size="3"),
             spacing="3",
             align="start",
             width="100%",

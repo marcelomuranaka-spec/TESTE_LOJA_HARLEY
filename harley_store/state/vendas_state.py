@@ -55,11 +55,11 @@ class VendasState(rx.State):
     valor_total: str = "0.00"
 
     @rx.event
-    def carregar(self):
-        funcionarios = sorted(xano.listar(TABELA_FUNCIONARIOS), key=lambda f: f["nome_funcionario"])
-        clientes = sorted(xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
-        motos = sorted(xano.listar(TABELA_MOTOS), key=lambda m: m["modelo"])
-        produtos = sorted(xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
+    async def carregar(self):
+        funcionarios = sorted(await xano.listar(TABELA_FUNCIONARIOS), key=lambda f: f["nome_funcionario"])
+        clientes = sorted(await xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
+        motos = sorted(await xano.listar(TABELA_MOTOS), key=lambda m: m["modelo"])
+        produtos = sorted(await xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
 
         self.funcionarios_opcoes = [f"{f['id']} - {f['nome_funcionario']}" for f in funcionarios]
         self.clientes_opcoes = [SEM_CLIENTE] + [f"{c['id']} - {c['nome_cliente']}" for c in clientes]
@@ -72,7 +72,7 @@ class VendasState(rx.State):
         nomes_funcionario = {f["id"]: f["nome_funcionario"] for f in funcionarios}
         nomes_cliente = {c["id"]: c["nome_cliente"] for c in clientes}
 
-        registros = sorted(xano.listar(TABELA), key=lambda t: t["data_transacao"], reverse=True)[:50]
+        registros = sorted(await xano.listar(TABELA), key=lambda t: t["data_transacao"], reverse=True)[:50]
 
         self.transacoes = [
             {
@@ -94,16 +94,16 @@ class VendasState(rx.State):
         self.tipo_transacao = valor
 
     @rx.event
-    def definir_produto(self, valor: str):
+    async def definir_produto(self, valor: str):
         self.produto_selecionado = valor
-        self._recalcular_valor()
+        await self._recalcular_valor()
 
     @rx.event
-    def definir_quantidade(self, valor: str):
+    async def definir_quantidade(self, valor: str):
         self.quantidade = valor
-        self._recalcular_valor()
+        await self._recalcular_valor()
 
-    def _recalcular_valor(self):
+    async def _recalcular_valor(self):
         if self.produto_selecionado == SEM_PRODUTO or not self.produto_selecionado:
             return
         try:
@@ -111,7 +111,7 @@ class VendasState(rx.State):
             qtd = int(self.quantidade or 0)
         except ValueError:
             return
-        produto = xano.buscar(TABELA_PRODUTOS, produto_id)
+        produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
         if produto:
             self.valor_total = f"{produto['preco_venda'] * qtd:.2f}"
 
@@ -125,7 +125,7 @@ class VendasState(rx.State):
         self.valor_total = "0.00"
 
     @rx.event
-    def salvar(self):
+    async def salvar(self):
         if not self.funcionario_selecionado:
             return rx.window_alert("Cadastre um funcionário antes de registrar uma venda.")
         try:
@@ -151,7 +151,7 @@ class VendasState(rx.State):
                 return rx.window_alert("Quantidade precisa ser maior que zero.")
 
         if produto_id is not None:
-            produto = xano.buscar(TABELA_PRODUTOS, produto_id)
+            produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
             if produto is None:
                 return rx.window_alert("Produto não encontrado.")
             if produto["estoque_qtd"] < quantidade:
@@ -159,9 +159,9 @@ class VendasState(rx.State):
                     f"Estoque insuficiente: só há {produto['estoque_qtd']} unidade(s) de {produto['nome_produto']}."
                 )
             produto["estoque_qtd"] -= quantidade
-            xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
+            await xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
 
-        xano.criar(
+        await xano.criar(
             TABELA,
             {
                 "tipo_transacao": self.tipo_transacao,
@@ -174,13 +174,13 @@ class VendasState(rx.State):
         )
 
         self.nova_venda()
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def excluir(self, transacao_id: str):
+    async def excluir(self, transacao_id: str):
         # Observação: excluir uma venda aqui NÃO devolve o produto ao estoque
         # automaticamente (o vínculo com o produto não é guardado, ver nota
         # no topo do arquivo). Ajuste o estoque manualmente na página Produtos
         # se for o caso.
-        xano.excluir(TABELA, int(transacao_id))
-        self.carregar()
+        await xano.excluir(TABELA, int(transacao_id))
+        await self.carregar()

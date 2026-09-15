@@ -19,12 +19,22 @@ Detalhes importantes do Xano que este cliente já resolve para quem chama:
   várias chamadas em sequência para montar os menus/relatórios, é fácil
   esbarrar nesse limite (erro 429) mesmo em uso normal. `_request` faz
   retentativas automáticas com espera crescente antes de desistir.
+
+Todas as funções aqui são `async` e usam `httpx.AsyncClient` (não
+`httpx.request` síncrono). Isso importa especialmente no Reflex: um
+event handler síncrono que faz uma chamada de rede bloqueante trava a
+única thread do loop de eventos do app inteiro enquanto espera — nesse
+tempo o servidor não consegue nem responder ao ping/pong do websocket,
+e o navegador chega a mostrar "Cannot connect to server" mesmo com o
+back-end vivo, só ocupado. Usando `await` em vez de chamada bloqueante,
+o loop de eventos fica livre para atender outras coisas (incluindo o
+próprio heartbeat da conexão) enquanto a resposta do Xano não chega.
 """
 
 from __future__ import annotations
 
+import asyncio
 import datetime
-import time
 
 import httpx
 
@@ -34,44 +44,45 @@ _MAX_TENTATIVAS = 5
 _ESPERA_BASE_SEGUNDOS = 1.5
 
 
-def _request(metodo: str, url: str, **kwargs) -> httpx.Response:
-    for tentativa in range(_MAX_TENTATIVAS):
-        resposta = httpx.request(metodo, url, timeout=_TIMEOUT, **kwargs)
-        if resposta.status_code != 429:
-            return resposta
-        espera = float(resposta.headers.get("Retry-After", 0)) or _ESPERA_BASE_SEGUNDOS * (2**tentativa)
-        time.sleep(min(espera, 20))
+async def _request(metodo: str, url: str, **kwargs) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        for tentativa in range(_MAX_TENTATIVAS):
+            resposta = await client.request(metodo, url, **kwargs)
+            if resposta.status_code != 429:
+                return resposta
+            espera = float(resposta.headers.get("Retry-After", 0)) or _ESPERA_BASE_SEGUNDOS * (2**tentativa)
+            await asyncio.sleep(min(espera, 20))
     return resposta
 
 
-def listar(tabela: str) -> list[dict]:
-    resposta = _request("GET", f"{BASE_URL}/{tabela}")
+async def listar(tabela: str) -> list[dict]:
+    resposta = await _request("GET", f"{BASE_URL}/{tabela}")
     resposta.raise_for_status()
     return resposta.json() or []
 
 
-def buscar(tabela: str, registro_id: int) -> dict | None:
-    resposta = _request("GET", f"{BASE_URL}/{tabela}/{registro_id}")
+async def buscar(tabela: str, registro_id: int) -> dict | None:
+    resposta = await _request("GET", f"{BASE_URL}/{tabela}/{registro_id}")
     if resposta.status_code == 404:
         return None
     resposta.raise_for_status()
     return resposta.json()
 
 
-def criar(tabela: str, dados: dict) -> dict:
-    resposta = _request("POST", f"{BASE_URL}/{tabela}", json=dados)
+async def criar(tabela: str, dados: dict) -> dict:
+    resposta = await _request("POST", f"{BASE_URL}/{tabela}", json=dados)
     resposta.raise_for_status()
     return resposta.json()
 
 
-def atualizar(tabela: str, registro_id: int, dados: dict) -> dict:
-    resposta = _request("PATCH", f"{BASE_URL}/{tabela}/{registro_id}", json=dados)
+async def atualizar(tabela: str, registro_id: int, dados: dict) -> dict:
+    resposta = await _request("PATCH", f"{BASE_URL}/{tabela}/{registro_id}", json=dados)
     resposta.raise_for_status()
     return resposta.json()
 
 
-def excluir(tabela: str, registro_id: int) -> None:
-    resposta = _request("DELETE", f"{BASE_URL}/{tabela}/{registro_id}")
+async def excluir(tabela: str, registro_id: int) -> None:
+    resposta = await _request("DELETE", f"{BASE_URL}/{tabela}/{registro_id}")
     if resposta.status_code == 404:
         return
     resposta.raise_for_status()

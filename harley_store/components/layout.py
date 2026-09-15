@@ -27,9 +27,10 @@ def _menu_link(href: str, icon: str, label: str) -> rx.Component:
     return rx.link(
         rx.hstack(
             rx.icon(icon, size=18),
-            rx.text(label, size="3"),
+            rx.text(label, size="3", display=["none", "none", "block"]),
             spacing="3",
             align="center",
+            justify=rx.breakpoints(initial="center", md="start"),
             width="100%",
             padding="0.55rem 0.75rem",
             border_radius="0.5rem",
@@ -40,15 +41,18 @@ def _menu_link(href: str, icon: str, label: str) -> rx.Component:
         color_scheme="gray",
         high_contrast=True,
         width="100%",
+        title=label,
     )
 
 
 def sidebar() -> rx.Component:
+    """Menu lateral. Em telas estreitas (celular) encolhe para uma trilha só
+    de ícones, já que o app agora também roda instalado como PWA no iPhone."""
     return rx.box(
         rx.vstack(
             rx.hstack(
                 rx.icon("flame", size=22, color=rx.color("orange", 9)),
-                rx.heading("Harley Store", size="5"),
+                rx.heading("Harley Store", size="5", display=["none", "none", "block"]),
                 align="center",
                 spacing="2",
                 padding_bottom="1rem",
@@ -58,23 +62,20 @@ def sidebar() -> rx.Component:
             rx.divider(),
             rx.hstack(
                 rx.icon("circle-user-round", size=18, color=rx.color("gray", 10)),
-                rx.text(AuthState.usuario_logado, size="2", color=rx.color("gray", 11)),
+                rx.text(
+                    AuthState.usuario_logado,
+                    size="2",
+                    color=rx.color("gray", 11),
+                    display=["none", "none", "block"],
+                ),
                 align="center",
                 spacing="2",
                 width="100%",
                 padding="0.4rem 0.75rem",
             ),
             rx.button(
-                rx.icon("repeat", size=16),
-                "Trocar de usuário",
-                on_click=AuthState.sair,
-                variant="soft",
-                color_scheme="gray",
-                width="100%",
-            ),
-            rx.button(
                 rx.icon("log-out", size=16),
-                "Sair",
+                rx.text("Sair", display=["none", "none", "block"]),
                 on_click=AuthState.sair,
                 variant="soft",
                 color_scheme="red",
@@ -85,14 +86,15 @@ def sidebar() -> rx.Component:
             spacing="1",
             height="100%",
         ),
-        width="230px",
-        min_width="230px",
+        width=["64px", "64px", "230px"],
+        min_width=["64px", "64px", "230px"],
         height="100vh",
         position="sticky",
         top="0",
-        padding="1rem",
+        padding=["0.5rem", "0.5rem", "1rem"],
         border_right=f"1px solid {rx.color('gray', 5)}",
         background=rx.color("gray", 1),
+        flex_shrink="0",
     )
 
 
@@ -112,9 +114,10 @@ def page(*children: rx.Component, title: str, subtitle: str = "") -> rx.Componen
                 width="100%",
                 spacing="4",
             ),
-            padding="2rem",
+            padding=["1rem", "1rem", "2rem"],
             width="100%",
             max_width="1100px",
+            overflow_x="auto",
         ),
         align="start",
         width="100%",

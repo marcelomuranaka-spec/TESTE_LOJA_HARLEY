@@ -14,20 +14,20 @@ from . import xano_client
 BASE_URL = "https://x8ki-letl-twmt.n7.xano.io/api:KegVKtiw"
 
 
-def listar_usuarios() -> list[dict]:
-    resposta = xano_client._request("GET", f"{BASE_URL}/user/list")
+async def listar_usuarios() -> list[dict]:
+    resposta = await xano_client._request("GET", f"{BASE_URL}/user/list")
     resposta.raise_for_status()
     return resposta.json() or []
 
 
-def atualizar_email(usuario_id: int, novo_email: str) -> dict:
-    resposta = xano_client._request(
+async def atualizar_email(usuario_id: int, novo_email: str) -> dict:
+    resposta = await xano_client._request(
         "POST", f"{BASE_URL}/user/update-email", json={"id": usuario_id, "email": novo_email}
     )
     resposta.raise_for_status()
     return resposta.json()
 
 
-def excluir_usuario(usuario_id: int) -> None:
-    resposta = xano_client._request("POST", f"{BASE_URL}/user/delete", json={"id": usuario_id})
+async def excluir_usuario(usuario_id: int) -> None:
+    resposta = await xano_client._request("POST", f"{BASE_URL}/user/delete", json={"id": usuario_id})
     resposta.raise_for_status()

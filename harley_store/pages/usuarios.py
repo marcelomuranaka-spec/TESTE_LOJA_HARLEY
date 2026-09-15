@@ -1,12 +1,13 @@
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..state.auth_state import AuthState
 from ..state.usuarios_state import UsuariosState
 
 
 def _linha(row: dict) -> rx.Component:
-    eh_voce = AuthState.auth_user_id == row["id"]
+    eh_voce = AuthState.auth_user_id.to(str) == row["id"]
     return rx.table.row(
         rx.table.cell(
             rx.hstack(
@@ -26,12 +27,9 @@ def _linha(row: dict) -> rx.Component:
             )
         ),
         rx.table.cell(
-            rx.button(
-                "Excluir",
-                size="1",
-                variant="soft",
-                color_scheme="red",
-                on_click=UsuariosState.excluir(row["id"]),
+            confirm_delete_button(
+                UsuariosState.excluir(row["id"]),
+                item_label=f"a conta de “{row['nome']}”",
             )
         ),
     )
@@ -77,8 +75,14 @@ def _formulario() -> rx.Component:
                 rx.text(UsuariosState.erro, color="red", size="2"),
             ),
             rx.hstack(
-                rx.button("Salvar", on_click=UsuariosState.salvar),
-                rx.button("Limpar", variant="soft", color_scheme="gray", on_click=UsuariosState.limpar_formulario),
+                rx.button(rx.icon("check", size=16), "Salvar", on_click=UsuariosState.salvar),
+                rx.button(
+                    rx.icon("x", size=16),
+                    "Limpar",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=UsuariosState.limpar_formulario,
+                ),
                 spacing="3",
             ),
             spacing="3",

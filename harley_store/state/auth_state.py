@@ -34,7 +34,11 @@ class AuthState(rx.State):
     # Guarda o nome do usuário logado (só pra exibição); "" significa deslogado.
     usuario_logado: str = rx.Cookie("", name="hs_usuario")
     auth_token: str = rx.Cookie("", name="hs_auth_token")
-    auth_user_id: str = rx.Cookie("", name="hs_auth_user_id_v2")
+    # É um id numérico do Xano — tipado como int (não str) porque o
+    # Reflex, ao reidratar o cookie no navegador, sempre interpreta um
+    # valor com cara de número como int; manter isso como str fazia esse
+    # aviso de tipo aparecer a cada login, mesmo com um cookie novo.
+    auth_user_id: int = rx.Cookie(0, name="hs_auth_user_id_v2")
 
     # Campos do formulário de login
     login_email: str = ""
@@ -73,7 +77,7 @@ class AuthState(rx.State):
         self.cad_erro = ""
 
     @rx.event
-    def fazer_login(self):
+    async def fazer_login(self):
         email = self.login_email.strip()
         senha = self.login_senha
         if not email or not senha:
@@ -81,7 +85,7 @@ class AuthState(rx.State):
             return
 
         try:
-            resultado = xano_auth_client.login(email, senha)
+            resultado = await xano_auth_client.login(email, senha)
         except XanoAuthError:
             self.login_erro = "Email ou senha incorretos."
             return
@@ -92,12 +96,12 @@ class AuthState(rx.State):
         self.login_erro = ""
         self.login_senha = ""
         self.auth_token = resultado["authToken"]
-        self.auth_user_id = str(resultado["user_id"])
+        self.auth_user_id = int(resultado["user_id"])
         self.usuario_logado = resultado.get("name") or email
         return rx.redirect("/")
 
     @rx.event
-    def cadastrar(self):
+    async def cadastrar(self):
         nome_completo = self.cad_nome_completo.strip()
         email = self.cad_email.strip()
         senha = self.cad_senha
@@ -114,7 +118,7 @@ class AuthState(rx.State):
             return
 
         try:
-            resultado = xano_auth_client.signup(nome_completo, email, senha)
+            resultado = await xano_auth_client.signup(nome_completo, email, senha)
         except XanoAuthError as erro:
             if "already exists" in str(erro).lower():
                 self.cad_erro = "Esse email já está cadastrado."
@@ -129,14 +133,14 @@ class AuthState(rx.State):
         self.cad_senha = ""
         self.cad_confirmar_senha = ""
         self.auth_token = resultado["authToken"]
-        self.auth_user_id = str(resultado["user_id"])
+        self.auth_user_id = int(resultado["user_id"])
         self.usuario_logado = nome_completo
         return rx.redirect("/")
 
     @rx.event
     def sair(self):
         self.auth_token = ""
-        self.auth_user_id = ""
+        self.auth_user_id = 0
         self.usuario_logado = ""
         return rx.redirect("/login")
 

@@ -5,6 +5,7 @@ Para criar uma página nova parecida, copie este arquivo.
 
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..state.fornecedores_state import FornecedoresState
 
@@ -16,13 +17,16 @@ def _linha(row: dict) -> rx.Component:
         rx.table.cell(row["contato"]),
         rx.table.cell(
             rx.hstack(
-                rx.button("Editar", size="1", variant="soft", on_click=FornecedoresState.editar(row)),
                 rx.button(
-                    "Excluir",
+                    rx.icon("pencil", size=14),
+                    "Editar",
                     size="1",
                     variant="soft",
-                    color_scheme="red",
-                    on_click=FornecedoresState.excluir(row["id"]),
+                    on_click=FornecedoresState.editar(row),
+                ),
+                confirm_delete_button(
+                    FornecedoresState.excluir(row["id"]),
+                    item_label=f"o fornecedor “{row['nome_fornecedor']}”",
                 ),
                 spacing="2",
             )
@@ -60,8 +64,14 @@ def _formulario() -> rx.Component:
                 width="100%",
             ),
             rx.hstack(
-                rx.button("Salvar", on_click=FornecedoresState.salvar),
-                rx.button("Cancelar", variant="soft", color_scheme="gray", on_click=FornecedoresState.novo),
+                rx.button(rx.icon("check", size=16), "Salvar", on_click=FornecedoresState.salvar),
+                rx.button(
+                    rx.icon("x", size=16),
+                    "Cancelar",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=FornecedoresState.novo,
+                ),
                 spacing="3",
             ),
             spacing="3",

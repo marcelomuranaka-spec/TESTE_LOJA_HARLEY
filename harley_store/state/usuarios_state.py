@@ -23,8 +23,8 @@ class UsuariosState(rx.State):
     erro: str = ""
 
     @rx.event
-    def carregar(self):
-        registros = xano_admin_client.listar_usuarios()
+    async def carregar(self):
+        registros = await xano_admin_client.listar_usuarios()
         self.usuarios = [
             {
                 "id": str(r["id"]),
@@ -43,7 +43,7 @@ class UsuariosState(rx.State):
         self.erro = ""
 
     @rx.event
-    def salvar(self):
+    async def salvar(self):
         nome_completo = self.novo_nome_completo.strip()
         email = self.novo_email.strip()
         senha = self.nova_senha
@@ -58,7 +58,7 @@ class UsuariosState(rx.State):
             return
 
         try:
-            signup(nome_completo, email, senha)
+            await signup(nome_completo, email, senha)
         except XanoAuthError as erro:
             if "already exists" in str(erro).lower():
                 self.erro = "Esse email já está cadastrado."
@@ -70,27 +70,27 @@ class UsuariosState(rx.State):
             return
 
         self.limpar_formulario()
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def atualizar_email(self, usuario_id: str, novo_email: str):
-        xano_admin_client.atualizar_email(int(usuario_id), novo_email.strip())
-        self.carregar()
+    async def atualizar_email(self, usuario_id: str, novo_email: str):
+        await xano_admin_client.atualizar_email(int(usuario_id), novo_email.strip())
+        await self.carregar()
 
     @rx.event
     async def excluir(self, usuario_id: str):
-        total = len(xano_admin_client.listar_usuarios())
+        total = len(await xano_admin_client.listar_usuarios())
         if total <= 1:
             return rx.window_alert("Não é possível excluir o único usuário do sistema.")
 
-        xano_admin_client.excluir_usuario(int(usuario_id))
+        await xano_admin_client.excluir_usuario(int(usuario_id))
 
         auth = await self.get_state(AuthState)
-        if auth.auth_user_id == usuario_id:
+        if str(auth.auth_user_id) == usuario_id:
             auth.auth_token = ""
-            auth.auth_user_id = ""
+            auth.auth_user_id = 0
             auth.usuario_logado = ""
-            self.carregar()
+            await self.carregar()
             return rx.redirect("/login")
 
-        self.carregar()
+        await self.carregar()

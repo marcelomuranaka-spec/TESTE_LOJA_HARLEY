@@ -67,6 +67,7 @@ class Produto(rx.Model, table=True):
     categoria: str
     estoque_qtd: int = 0
     preco_venda: float = 0.0
+    imagem: Optional[str] = None
 
 
 class Funcionario(rx.Model, table=True):
@@ -98,6 +99,7 @@ class MotoCliente(rx.Model, table=True):
     modelo: str
     placa: str = Field(unique=True)
     chassi: str = Field(unique=True)
+    imagem: Optional[str] = None
 
 
 class EntradaMercadoria(rx.Model, table=True):

@@ -1,5 +1,6 @@
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..state.clientes_state import ClientesState
 
@@ -12,13 +13,16 @@ def _linha(row: dict) -> rx.Component:
         rx.table.cell(row["email"]),
         rx.table.cell(
             rx.hstack(
-                rx.button("Editar", size="1", variant="soft", on_click=ClientesState.editar(row)),
                 rx.button(
-                    "Excluir",
+                    rx.icon("pencil", size=14),
+                    "Editar",
                     size="1",
                     variant="soft",
-                    color_scheme="red",
-                    on_click=ClientesState.excluir(row["id"]),
+                    on_click=ClientesState.editar(row),
+                ),
+                confirm_delete_button(
+                    ClientesState.excluir(row["id"]),
+                    item_label=f"o cliente “{row['nome_cliente']}”",
                 ),
                 spacing="2",
             )
@@ -69,8 +73,14 @@ def _formulario() -> rx.Component:
                 width="100%",
             ),
             rx.hstack(
-                rx.button("Salvar", on_click=ClientesState.salvar),
-                rx.button("Cancelar", variant="soft", color_scheme="gray", on_click=ClientesState.novo),
+                rx.button(rx.icon("check", size=16), "Salvar", on_click=ClientesState.salvar),
+                rx.button(
+                    rx.icon("x", size=16),
+                    "Cancelar",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=ClientesState.novo,
+                ),
                 spacing="3",
             ),
             spacing="3",

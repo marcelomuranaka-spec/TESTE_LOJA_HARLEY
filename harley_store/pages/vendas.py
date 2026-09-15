@@ -1,5 +1,6 @@
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..models import TIPOS_TRANSACAO
 from ..state.vendas_state import VendasState
@@ -13,12 +14,9 @@ def _linha(row: dict) -> rx.Component:
         rx.table.cell(row["cliente_nome"]),
         rx.table.cell(rx.text("R$ ", row["valor_total"])),
         rx.table.cell(
-            rx.button(
-                "Excluir",
-                size="1",
-                variant="soft",
-                color_scheme="red",
-                on_click=VendasState.excluir(row["id"]),
+            confirm_delete_button(
+                VendasState.excluir(row["id"]),
+                item_label="esta venda",
             )
         ),
     )
@@ -97,8 +95,14 @@ def _formulario() -> rx.Component:
                 align="center",
             ),
             rx.hstack(
-                rx.button("Registrar venda", on_click=VendasState.salvar),
-                rx.button("Limpar", variant="soft", color_scheme="gray", on_click=VendasState.nova_venda),
+                rx.button(rx.icon("check", size=16), "Registrar venda", on_click=VendasState.salvar),
+                rx.button(
+                    rx.icon("x", size=16),
+                    "Limpar",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=VendasState.nova_venda,
+                ),
                 spacing="3",
             ),
             spacing="3",

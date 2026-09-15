@@ -1,5 +1,6 @@
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..models import TIPOS_FUNCIONARIO
 from ..state.funcionarios_state import FuncionariosState
@@ -13,13 +14,16 @@ def _linha(row: dict) -> rx.Component:
         rx.table.cell(row["contato"]),
         rx.table.cell(
             rx.hstack(
-                rx.button("Editar", size="1", variant="soft", on_click=FuncionariosState.editar(row)),
                 rx.button(
-                    "Excluir",
+                    rx.icon("pencil", size=14),
+                    "Editar",
                     size="1",
                     variant="soft",
-                    color_scheme="red",
-                    on_click=FuncionariosState.excluir(row["id"]),
+                    on_click=FuncionariosState.editar(row),
+                ),
+                confirm_delete_button(
+                    FuncionariosState.excluir(row["id"]),
+                    item_label=f"o funcionário “{row['nome_funcionario']}”",
                 ),
                 spacing="2",
             )
@@ -64,8 +68,14 @@ def _formulario() -> rx.Component:
                 width="100%",
             ),
             rx.hstack(
-                rx.button("Salvar", on_click=FuncionariosState.salvar),
-                rx.button("Cancelar", variant="soft", color_scheme="gray", on_click=FuncionariosState.novo),
+                rx.button(rx.icon("check", size=16), "Salvar", on_click=FuncionariosState.salvar),
+                rx.button(
+                    rx.icon("x", size=16),
+                    "Cancelar",
+                    variant="soft",
+                    color_scheme="gray",
+                    on_click=FuncionariosState.novo,
+                ),
                 spacing="3",
             ),
             spacing="3",

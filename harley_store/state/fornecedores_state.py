@@ -27,8 +27,8 @@ class FornecedoresState(rx.State):
     contato: str = ""
 
     @rx.event
-    def carregar(self):
-        registros = xano.listar(TABELA)
+    async def carregar(self):
+        registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
             registros = [r for r in registros if termo in r["nome_fornecedor"].lower()]
@@ -44,9 +44,9 @@ class FornecedoresState(rx.State):
         ]
 
     @rx.event
-    def definir_busca(self, valor: str):
+    async def definir_busca(self, valor: str):
         self.busca = valor
-        self.carregar()
+        await self.carregar()
 
     @rx.event
     def novo(self):
@@ -63,7 +63,7 @@ class FornecedoresState(rx.State):
         self.contato = "" if row["contato"] == "—" else row["contato"]
 
     @rx.event
-    def salvar(self):
+    async def salvar(self):
         nome = self.nome_fornecedor.strip()
         cnpj = self.cnpj.strip()
         if not nome or not cnpj:
@@ -71,21 +71,21 @@ class FornecedoresState(rx.State):
 
         duplicado = any(
             r["cnpj"] == cnpj and str(r["id"]) != str(self.form_id)
-            for r in xano.listar(TABELA)
+            for r in await xano.listar(TABELA)
         )
         if duplicado:
             return rx.window_alert("Já existe um fornecedor com esse CNPJ.")
 
         dados = {"nome_fornecedor": nome, "cnpj": cnpj, "contato": self.contato.strip() or None}
         if self.form_id is None:
-            xano.criar(TABELA, dados)
+            await xano.criar(TABELA, dados)
         else:
-            xano.atualizar(TABELA, self.form_id, dados)
+            await xano.atualizar(TABELA, self.form_id, dados)
 
         self.novo()
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def excluir(self, fornecedor_id: str):
-        xano.excluir(TABELA, int(fornecedor_id))
-        self.carregar()
+    async def excluir(self, fornecedor_id: str):
+        await xano.excluir(TABELA, int(fornecedor_id))
+        await self.carregar()

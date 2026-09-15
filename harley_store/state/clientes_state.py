@@ -21,8 +21,8 @@ class ClientesState(rx.State):
     endereco: str = ""
 
     @rx.event
-    def carregar(self):
-        registros = xano.listar(TABELA)
+    async def carregar(self):
+        registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
             registros = [r for r in registros if termo in r["nome_cliente"].lower()]
@@ -40,9 +40,9 @@ class ClientesState(rx.State):
         ]
 
     @rx.event
-    def definir_busca(self, valor: str):
+    async def definir_busca(self, valor: str):
         self.busca = valor
-        self.carregar()
+        await self.carregar()
 
     @rx.event
     def novo(self):
@@ -63,7 +63,7 @@ class ClientesState(rx.State):
         self.endereco = "" if row["endereco"] == "—" else row["endereco"]
 
     @rx.event
-    def salvar(self):
+    async def salvar(self):
         nome = self.nome_cliente.strip()
         doc = self.cpf_cnpj.strip()
         if not nome or not doc:
@@ -71,7 +71,7 @@ class ClientesState(rx.State):
 
         duplicado = any(
             r["cpf_cnpj"] == doc and str(r["id"]) != str(self.form_id)
-            for r in xano.listar(TABELA)
+            for r in await xano.listar(TABELA)
         )
         if duplicado:
             return rx.window_alert("Já existe um cliente com esse CPF/CNPJ.")
@@ -84,14 +84,14 @@ class ClientesState(rx.State):
             "endereco": self.endereco.strip() or None,
         }
         if self.form_id is None:
-            xano.criar(TABELA, dados)
+            await xano.criar(TABELA, dados)
         else:
-            xano.atualizar(TABELA, self.form_id, dados)
+            await xano.atualizar(TABELA, self.form_id, dados)
 
         self.novo()
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def excluir(self, cliente_id: str):
-        xano.excluir(TABELA, int(cliente_id))
-        self.carregar()
+    async def excluir(self, cliente_id: str):
+        await xano.excluir(TABELA, int(cliente_id))
+        await self.carregar()

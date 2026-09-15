@@ -32,14 +32,14 @@ class OrdensServicoState(rx.State):
         return f"{total:.2f}"
 
     @rx.event
-    def carregar(self):
-        motos = sorted(xano.listar(TABELA_MOTOS), key=lambda m: m["modelo"])
-        todos_funcionarios = xano.listar(TABELA_FUNCIONARIOS)
+    async def carregar(self):
+        motos = sorted(await xano.listar(TABELA_MOTOS), key=lambda m: m["modelo"])
+        todos_funcionarios = await xano.listar(TABELA_FUNCIONARIOS)
         mecanicos = sorted(
             [f for f in todos_funcionarios if f["tipo"] == "MECANICO"],
             key=lambda f: f["nome_funcionario"],
         )
-        produtos = sorted(xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
+        produtos = sorted(await xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
 
         self.motos_opcoes = [f"{m['id']} - {m['modelo']} ({m['placa']})" for m in motos]
         self.mecanicos_opcoes = [f"{f['id']} - {f['nome_funcionario']}" for f in mecanicos]
@@ -55,10 +55,10 @@ class OrdensServicoState(rx.State):
         # também pode haver mecânicos já cadastrados com outro tipo em OS antigas
         nomes_mecanico = {f["id"]: f["nome_funcionario"] for f in todos_funcionarios}
 
-        registros = sorted(xano.listar(TABELA_OS), key=lambda o: o["data_abertura"], reverse=True)[:30]
+        registros = sorted(await xano.listar(TABELA_OS), key=lambda o: o["data_abertura"], reverse=True)[:30]
         qtd_itens_por_os: dict[int, int] = {}
         valor_por_os: dict[int, float] = {}
-        for item in xano.listar(TABELA_ITENS):
+        for item in await xano.listar(TABELA_ITENS):
             qtd_itens_por_os[item["id_os"]] = qtd_itens_por_os.get(item["id_os"], 0) + 1
             valor_por_os[item["id_os"]] = valor_por_os.get(item["id_os"], 0.0) + item["valor_total_item"]
 
@@ -106,7 +106,7 @@ class OrdensServicoState(rx.State):
         self.itens_atual = [item for i, item in enumerate(self.itens_atual) if i != indice]
 
     @rx.event
-    def abrir_os(self):
+    async def abrir_os(self):
         if not self.moto_selecionada:
             return rx.window_alert("Cadastre uma moto do cliente antes de abrir uma OS.")
         if not self.mecanico_selecionado:
@@ -115,7 +115,7 @@ class OrdensServicoState(rx.State):
         id_moto = int(self.moto_selecionada.split(" - ")[0])
         id_mecanico = int(self.mecanico_selecionado.split(" - ")[0])
 
-        os_nova = xano.criar(
+        os_nova = await xano.criar(
             TABELA_OS,
             {
                 "id_moto_cliente": id_moto,
@@ -130,7 +130,7 @@ class OrdensServicoState(rx.State):
             quantidade = int(item["quantidade"])
             valor_total_item = float(item["valor_total_item"])
 
-            xano.criar(
+            await xano.criar(
                 TABELA_ITENS,
                 {
                     "id_os": os_nova["id"],
@@ -139,26 +139,26 @@ class OrdensServicoState(rx.State):
                     "valor_total_item": valor_total_item,
                 },
             )
-            produto = xano.buscar(TABELA_PRODUTOS, produto_id)
+            produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
             if produto is not None:
                 produto["estoque_qtd"] = max(0, produto["estoque_qtd"] - quantidade)
-                xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
+                await xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
 
         self.itens_atual = []
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def mudar_status(self, os_id: str, novo_status: str):
-        registro = xano.buscar(TABELA_OS, int(os_id))
+    async def mudar_status(self, os_id: str, novo_status: str):
+        registro = await xano.buscar(TABELA_OS, int(os_id))
         if registro is not None:
             registro["status"] = novo_status
-            xano.atualizar(TABELA_OS, int(os_id), {k: v for k, v in registro.items() if k != "id"})
-        self.carregar()
+            await xano.atualizar(TABELA_OS, int(os_id), {k: v for k, v in registro.items() if k != "id"})
+        await self.carregar()
 
     @rx.event
-    def excluir_os(self, os_id: str):
-        for item in xano.listar(TABELA_ITENS):
+    async def excluir_os(self, os_id: str):
+        for item in await xano.listar(TABELA_ITENS):
             if item["id_os"] == int(os_id):
-                xano.excluir(TABELA_ITENS, item["id"])
-        xano.excluir(TABELA_OS, int(os_id))
-        self.carregar()
+                await xano.excluir(TABELA_ITENS, item["id"])
+        await xano.excluir(TABELA_OS, int(os_id))
+        await self.carregar()

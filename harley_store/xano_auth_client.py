@@ -19,8 +19,8 @@ class XanoAuthError(Exception):
     """Erro retornado pelo Xano (mensagem já pronta pra decidir o que mostrar)."""
 
 
-def _post(caminho: str, dados: dict) -> dict:
-    resposta = xano_client._request("POST", f"{BASE_URL}/{caminho}", json=dados)
+async def _post(caminho: str, dados: dict) -> dict:
+    resposta = await xano_client._request("POST", f"{BASE_URL}/{caminho}", json=dados)
     if resposta.status_code >= 400:
         try:
             mensagem = resposta.json().get("message", "")
@@ -30,11 +30,11 @@ def _post(caminho: str, dados: dict) -> dict:
     return resposta.json()
 
 
-def login(email: str, senha: str) -> dict:
+async def login(email: str, senha: str) -> dict:
     """Retorna {"authToken", "user_id", "name"}. Levanta XanoAuthError em credenciais inválidas."""
-    return _post("auth/login", {"email": email, "password": senha})
+    return await _post("auth/login", {"email": email, "password": senha})
 
 
-def signup(nome: str, email: str, senha: str) -> dict:
+async def signup(nome: str, email: str, senha: str) -> dict:
     """Retorna {"authToken", "user_id"}. Levanta XanoAuthError se o email já existe."""
-    return _post("auth/signup", {"name": nome, "email": email, "password": senha})
+    return await _post("auth/signup", {"name": nome, "email": email, "password": senha})

@@ -1,5 +1,6 @@
 import reflex as rx
 
+from ..components.confirm_dialog import confirm_delete_button
 from ..components.layout import page
 from ..state.compras_state import ComprasState
 
@@ -29,12 +30,9 @@ def _linha_historico(row: dict) -> rx.Component:
         rx.table.cell(row["qtd_itens"]),
         rx.table.cell(rx.text("R$ ", row["valor_total"])),
         rx.table.cell(
-            rx.button(
-                "Excluir",
-                size="1",
-                variant="soft",
-                color_scheme="red",
-                on_click=ComprasState.excluir_entrada(row["id"]),
+            confirm_delete_button(
+                ComprasState.excluir_entrada(row["id"]),
+                item_label="esta compra e todos os seus itens",
             )
         ),
     )
@@ -116,7 +114,12 @@ def _formulario() -> rx.Component:
                     spacing="3",
                 ),
             ),
-            rx.button("Finalizar compra", on_click=ComprasState.finalizar_compra, size="3"),
+            rx.button(
+                rx.icon("check", size=16),
+                "Finalizar compra",
+                on_click=ComprasState.finalizar_compra,
+                size="3",
+            ),
             spacing="3",
             align="start",
             width="100%",

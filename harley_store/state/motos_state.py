@@ -9,7 +9,9 @@ o nome do cliente na tabela em vez do id_cliente cru. Dados vêm do
 backend Xano.
 """
 
+from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 import reflex as rx
 
@@ -17,6 +19,9 @@ from .. import xano_client as xano
 
 TABELA = "motos_clientes"
 TABELA_CLIENTES = "clientes"
+
+EXTENSOES_IMAGEM_PERMITIDAS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+TAMANHO_MAXIMO_IMAGEM = 5 * 1024 * 1024  # 5 MB
 
 
 class MotosState(rx.State):
@@ -30,14 +35,16 @@ class MotosState(rx.State):
     modelo: str = ""
     placa: str = ""
     chassi: str = ""
+    imagem: str = ""
+    erro_imagem: str = ""
 
     @rx.event
-    def carregar(self):
-        clientes = sorted(xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
+    async def carregar(self):
+        clientes = sorted(await xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
         self.clientes_opcoes = [f"{c['id']} - {c['nome_cliente']}" for c in clientes]
         nomes_por_id = {c["id"]: c["nome_cliente"] for c in clientes}
 
-        registros = xano.listar(TABELA)
+        registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
             registros = [
@@ -54,14 +61,15 @@ class MotosState(rx.State):
                 "chassi": r["chassi"],
                 "id_cliente": str(r["id_cliente"]),
                 "cliente_nome": nomes_por_id.get(r["id_cliente"], "(cliente removido)"),
+                "imagem": r.get("imagem") or "",
             }
             for r in registros
         ]
 
     @rx.event
-    def definir_busca(self, valor: str):
+    async def definir_busca(self, valor: str):
         self.busca = valor
-        self.carregar()
+        await self.carregar()
 
     @rx.event
     def novo(self):
@@ -70,6 +78,8 @@ class MotosState(rx.State):
         self.modelo = ""
         self.placa = ""
         self.chassi = ""
+        self.imagem = ""
+        self.erro_imagem = ""
 
     @rx.event
     def editar(self, row: dict):
@@ -78,9 +88,36 @@ class MotosState(rx.State):
         self.modelo = row["modelo"]
         self.placa = row["placa"]
         self.chassi = row["chassi"]
+        self.imagem = row.get("imagem") or ""
+        self.erro_imagem = ""
 
     @rx.event
-    def salvar(self):
+    async def handle_upload_imagem(self, files: list[rx.UploadFile]):
+        """Salva a foto da moto localmente (pasta uploaded_files/) e guarda
+        só o nome do arquivo gerado — vai pro Xano no campo `imagem`."""
+        self.erro_imagem = ""
+        if not files:
+            return
+        arquivo = files[0]
+        extensao = Path(arquivo.name or "").suffix.lower()
+        if extensao not in EXTENSOES_IMAGEM_PERMITIDAS:
+            self.erro_imagem = "Formato inválido. Use PNG, JPG, WEBP ou GIF."
+            return
+        conteudo = await arquivo.read()
+        if len(conteudo) > TAMANHO_MAXIMO_IMAGEM:
+            self.erro_imagem = "Imagem muito grande (máximo 5 MB)."
+            return
+        nome_arquivo = f"moto_{uuid4().hex}{extensao}"
+        (rx.get_upload_dir() / nome_arquivo).write_bytes(conteudo)
+        self.imagem = nome_arquivo
+
+    @rx.event
+    def remover_imagem(self):
+        self.imagem = ""
+        self.erro_imagem = ""
+
+    @rx.event
+    async def salvar(self):
         modelo = self.modelo.strip()
         placa = self.placa.strip().upper()
         chassi = self.chassi.strip().upper()
@@ -89,7 +126,7 @@ class MotosState(rx.State):
 
         cliente_selecionado = self.cliente_selecionado
         if not cliente_selecionado:
-            clientes_existentes = sorted(xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
+            clientes_existentes = sorted(await xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
             if not clientes_existentes:
                 return rx.window_alert("Cadastre um cliente antes de cadastrar a moto dele.")
             primeiro_cliente = clientes_existentes[0]
@@ -99,21 +136,27 @@ class MotosState(rx.State):
 
         duplicado = any(
             (r["placa"] == placa or r["chassi"] == chassi) and str(r["id"]) != str(self.form_id)
-            for r in xano.listar(TABELA)
+            for r in await xano.listar(TABELA)
         )
         if duplicado:
             return rx.window_alert("Já existe uma moto cadastrada com essa placa ou chassi.")
 
-        dados = {"id_cliente": id_cliente, "modelo": modelo, "placa": placa, "chassi": chassi}
+        dados = {
+            "id_cliente": id_cliente,
+            "modelo": modelo,
+            "placa": placa,
+            "chassi": chassi,
+            "imagem": self.imagem or None,
+        }
         if self.form_id is None:
-            xano.criar(TABELA, dados)
+            await xano.criar(TABELA, dados)
         else:
-            xano.atualizar(TABELA, self.form_id, dados)
+            await xano.atualizar(TABELA, self.form_id, dados)
 
         self.novo()
-        self.carregar()
+        await self.carregar()
 
     @rx.event
-    def excluir(self, moto_id: str):
-        xano.excluir(TABELA, int(moto_id))
-        self.carregar()
+    async def excluir(self, moto_id: str):
+        await xano.excluir(TABELA, int(moto_id))
+        await self.carregar()

@@ -29,31 +29,31 @@ class DashboardState(rx.State):
     atividades_recentes: list[dict] = []
 
     @rx.event
-    def carregar(self):
+    async def carregar(self):
         hoje = datetime.date.today()
         inicio_hoje = datetime.datetime.combine(hoje, datetime.time.min)
         inicio_mes = datetime.datetime.combine(hoje.replace(day=1), datetime.time.min)
 
-        produtos = xano.listar("produtos")
+        produtos = await xano.listar("produtos")
         self.total_produtos = len(produtos)
         self.produtos_estoque_baixo = sum(1 for p in produtos if p["estoque_qtd"] <= LIMITE_ESTOQUE_BAIXO)
 
-        self.total_clientes = len(xano.listar("clientes"))
+        self.total_clientes = len(await xano.listar("clientes"))
 
-        ordens = xano.listar("ordens_servico")
+        ordens = await xano.listar("ordens_servico")
         self.os_em_aberto = sum(1 for o in ordens if o["status"] in ("ABERTA", "EM_ANDAMENTO"))
 
-        transacoes = xano.listar("transacoes")
+        transacoes = await xano.listar("transacoes")
         transacoes_com_data = [
             (t, xano.epoch_ms_para_datetime(t["data_transacao"])) for t in transacoes
         ]
         self.faturamento_hoje = f"{sum(t['valor_total'] for t, d in transacoes_com_data if d >= inicio_hoje):.2f}"
         self.faturamento_mes = f"{sum(t['valor_total'] for t, d in transacoes_com_data if d >= inicio_mes):.2f}"
 
-        funcionarios = {f["id"]: f["nome_funcionario"] for f in xano.listar("funcionarios")}
-        clientes = {c["id"]: c["nome_cliente"] for c in xano.listar("clientes")}
-        fornecedores = {f["id"]: f["nome_fornecedor"] for f in xano.listar("fornecedores")}
-        entradas = xano.listar("entrada_mercadoria")
+        funcionarios = {f["id"]: f["nome_funcionario"] for f in await xano.listar("funcionarios")}
+        clientes = {c["id"]: c["nome_cliente"] for c in await xano.listar("clientes")}
+        fornecedores = {f["id"]: f["nome_fornecedor"] for f in await xano.listar("fornecedores")}
+        entradas = await xano.listar("entrada_mercadoria")
 
         atividades = [
             {

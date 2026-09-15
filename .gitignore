@@ -18,3 +18,7 @@ env/
 .env
 
 *.log
+
+# Fotos enviadas pelos usuários (produtos e motos) — dado local de cada
+# instalação, não faz parte do código-fonte.
+uploaded_files/
