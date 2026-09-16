@@ -22,3 +22,9 @@ env/
 # Fotos enviadas pelos usuários (produtos e motos) — dado local de cada
 # instalação, não faz parte do código-fonte.
 uploaded_files/
+
+# Exportação do frontend gerada pelo `reflex export`
+frontend.zip
+
+# Arquivos temporários de trava do Word/Office
+~$*
