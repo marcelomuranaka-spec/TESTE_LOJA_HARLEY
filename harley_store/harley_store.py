@@ -24,6 +24,7 @@ from .pages.ordens_servico import ordens_servico_page
 from .pages.produtos import produtos_page
 from .pages.usuarios import usuarios_page
 from .pages.vendas import vendas_page
+from .pages.welcome import welcome_page
 from .state.auth_state import AuthState
 from .state.clientes_state import ClientesState
 from .state.compras_state import ComprasState
@@ -38,9 +39,9 @@ from .state.vendas_state import VendasState
 
 app = rx.App(
     theme=rx.theme(
-        appearance="light",
+        appearance="dark",
         accent_color="orange",
-        gray_color="sand",
+        gray_color="gray",
         radius="medium",
     ),
     # Tags de PWA — permitem instalar o app na tela de início do iPhone
@@ -56,6 +57,11 @@ app = rx.App(
 )
 
 app.add_page(
+    welcome_page,
+    route="/",
+    title="Harley Store — Bem-vindo",
+)
+app.add_page(
     login_page,
     route="/login",
     title="Entrar — Harley Store",
@@ -63,7 +69,7 @@ app.add_page(
 )
 app.add_page(
     dashboard_page,
-    route="/",
+    route="/painel",
     title="Painel — Harley Store",
     on_load=[AuthState.exigir_login, DashboardState.carregar],
 )

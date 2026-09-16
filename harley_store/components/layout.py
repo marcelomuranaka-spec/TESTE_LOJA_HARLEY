@@ -9,8 +9,13 @@ import reflex as rx
 
 from ..state.auth_state import AuthState
 
+LARANJA_HARLEY = "#f76511"
+FUNDO_CARVAO = "#101010"
+FUNDO_GRAFITE = "#181818"
+TEXTO_SUAVE = "#b8b4af"
+
 MENU_ITEMS = [
-    ("/", "layout-dashboard", "Painel"),
+    ("/painel", "layout-dashboard", "Painel"),
     ("/produtos", "package", "Produtos"),
     ("/clientes", "users", "Clientes"),
     ("/motos", "bike", "Motos dos clientes"),
@@ -34,11 +39,12 @@ def _menu_link(href: str, icon: str, label: str) -> rx.Component:
             width="100%",
             padding="0.55rem 0.75rem",
             border_radius="0.5rem",
-            _hover={"background": rx.color("gray", 4)},
+            color="#e7e2dc",
+            _hover={"background": "#2a1a13", "color": LARANJA_HARLEY},
         ),
         href=href,
         underline="none",
-        color_scheme="gray",
+        color_scheme="orange",
         high_contrast=True,
         width="100%",
         title=label,
@@ -51,8 +57,8 @@ def sidebar() -> rx.Component:
     return rx.box(
         rx.vstack(
             rx.hstack(
-                rx.icon("flame", size=22, color=rx.color("orange", 9)),
-                rx.heading("Harley Store", size="5", display=["none", "none", "block"]),
+                rx.icon("flame", size=22, color=LARANJA_HARLEY),
+                rx.heading("Harley Store", size="5", color="#ffffff", display=["none", "none", "block"]),
                 align="center",
                 spacing="2",
                 padding_bottom="1rem",
@@ -61,11 +67,11 @@ def sidebar() -> rx.Component:
             rx.spacer(),
             rx.divider(),
             rx.hstack(
-                rx.icon("circle-user-round", size=18, color=rx.color("gray", 10)),
+                rx.icon("circle-user-round", size=18, color=TEXTO_SUAVE),
                 rx.text(
                     AuthState.usuario_logado,
                     size="2",
-                    color=rx.color("gray", 11),
+                    color=TEXTO_SUAVE,
                     display=["none", "none", "block"],
                 ),
                 align="center",
@@ -78,7 +84,7 @@ def sidebar() -> rx.Component:
                 rx.text("Sair", display=["none", "none", "block"]),
                 on_click=AuthState.sair,
                 variant="soft",
-                color_scheme="red",
+                color_scheme="orange",
                 width="100%",
             ),
             align="start",
@@ -92,17 +98,17 @@ def sidebar() -> rx.Component:
         position="sticky",
         top="0",
         padding=["0.5rem", "0.5rem", "1rem"],
-        border_right=f"1px solid {rx.color('gray', 5)}",
-        background=rx.color("gray", 1),
+        border_right="1px solid #33231b",
+        background=FUNDO_CARVAO,
         flex_shrink="0",
     )
 
 
 def page(*children: rx.Component, title: str, subtitle: str = "") -> rx.Component:
     """Moldura padrão usada em todas as páginas: sidebar + cabeçalho + conteúdo."""
-    header_children = [rx.heading(title, size="6")]
+    header_children = [rx.heading(title, size="6", color="#ffffff")]
     if subtitle:
-        header_children.append(rx.text(subtitle, color=rx.color("gray", 10), size="3"))
+        header_children.append(rx.text(subtitle, color=TEXTO_SUAVE, size="3"))
 
     return rx.hstack(
         sidebar(),
@@ -117,9 +123,12 @@ def page(*children: rx.Component, title: str, subtitle: str = "") -> rx.Componen
             padding=["1rem", "1rem", "2rem"],
             width="100%",
             max_width="1100px",
+            min_height="100vh",
+            background=FUNDO_CARVAO,
             overflow_x="auto",
         ),
         align="start",
         width="100%",
         spacing="0",
+        background=FUNDO_CARVAO,
     )
