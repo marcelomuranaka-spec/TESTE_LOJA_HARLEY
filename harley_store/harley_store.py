@@ -19,6 +19,7 @@ from .pages.dashboard import dashboard_page
 from .pages.fornecedores import fornecedores_page
 from .pages.funcionarios import funcionarios_page
 from .pages.login import login_page
+from .pages.motocicletas import motocicletas_page
 from .pages.motos import motos_page
 from .pages.ordens_servico import ordens_servico_page
 from .pages.produtos import produtos_page
@@ -31,6 +32,7 @@ from .state.compras_state import ComprasState
 from .state.dashboard_state import DashboardState
 from .state.fornecedores_state import FornecedoresState
 from .state.funcionarios_state import FuncionariosState
+from .state.motocicletas_state import MotocicletasState
 from .state.motos_state import MotosState
 from .state.os_state import OrdensServicoState
 from .state.produtos_state import ProdutosState
@@ -84,6 +86,12 @@ app.add_page(
     route="/clientes",
     title="Clientes — Harley Store",
     on_load=[AuthState.exigir_login, ClientesState.carregar],
+)
+app.add_page(
+    motocicletas_page,
+    route="/motocicletas",
+    title="Motocicletas — Harley Store",
+    on_load=[AuthState.exigir_login, MotocicletasState.carregar],
 )
 app.add_page(
     motos_page,

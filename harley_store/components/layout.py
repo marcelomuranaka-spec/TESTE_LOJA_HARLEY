@@ -18,6 +18,7 @@ MENU_ITEMS = [
     ("/painel", "layout-dashboard", "Painel"),
     ("/produtos", "package", "Produtos"),
     ("/clientes", "users", "Clientes"),
+    ("/motocicletas", "gauge", "Motocicletas"),
     ("/motos", "bike", "Motos dos clientes"),
     ("/vendas", "shopping-cart", "Vendas / Balcão"),
     ("/ordens-servico", "wrench", "Ordens de serviço"),

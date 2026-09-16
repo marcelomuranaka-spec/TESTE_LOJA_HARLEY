@@ -107,6 +107,39 @@ async def excluir(tabela: str, registro_id: int) -> None:
     resposta.raise_for_status()
 
 
+async def enviar_foto(rota: str, conteudo: bytes, nome: str, mime: str) -> dict:
+    """Envia um arquivo de imagem (multipart, campo `arquivo`) para um
+    endpoint de upload do Xano e devolve os metadados gravados no
+    armazenamento de arquivos (path, name, mime, size, url...).
+
+    Esse objeto é o que vai no campo de imagem do registro — nunca o
+    conteúdo do arquivo nem Base64.
+    """
+    resposta = await _request(
+        "POST", f"{BASE_URL}/{rota}", files={"arquivo": (nome, conteudo, mime)}
+    )
+    resposta.raise_for_status()
+    return resposta.json() or {}
+
+
+def url_arquivo(metadados: object) -> str:
+    """URL pública de um arquivo guardado no Xano a partir dos metadados.
+
+    Usa `url` quando o Xano a devolve; senão monta host da instância + `path`.
+    Metadados ausentes ou inválidos viram string vazia.
+    """
+    if not isinstance(metadados, dict):
+        return ""
+    url = texto(metadados.get("url"))
+    if url:
+        return url
+    caminho = texto(metadados.get("path"))
+    if not caminho:
+        return ""
+    host = BASE_URL.split("/api:")[0]
+    return f"{host}/{caminho.lstrip('/')}"
+
+
 def epoch_ms_para_datetime(valor: int | float | str | None) -> datetime.datetime:
     """Converte a data do Xano (epoch em milissegundos) para datetime.
 
