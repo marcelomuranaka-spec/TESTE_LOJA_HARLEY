@@ -7,7 +7,7 @@ from ..state.usuarios_state import UsuariosState
 
 
 def _linha(row: dict) -> rx.Component:
-    eh_voce = AuthState.auth_user_id.to(str) == row["id"]
+    eh_voce = AuthState.auth_user_id == f"user:{row['id']}"
     return rx.table.row(
         rx.table.cell(
             rx.hstack(
@@ -21,6 +21,12 @@ def _linha(row: dict) -> rx.Component:
             rx.input(
                 placeholder="email@exemplo.com",
                 default_value=row["email"],
+                # `key` incluindo o email faz o React remontar o campo sempre
+                # que o valor mudar no state. Sem isso, um campo não
+                # controlado (default_value) continuava mostrando o texto
+                # digitado mesmo quando a alteração era recusada, e as linhas
+                # ficavam com o email da linha anterior depois de uma exclusão.
+                key=f"{row['id']}:{row['email']}",
                 on_blur=UsuariosState.atualizar_email(row["id"]),
                 size="1",
                 width="100%",
@@ -46,7 +52,7 @@ def _formulario() -> rx.Component:
                 width="100%",
             ),
             rx.input(
-                placeholder="Email (usado para redefinir a senha)",
+                placeholder="Email (usado para entrar no sistema)",
                 type="email",
                 value=UsuariosState.novo_email,
                 on_change=UsuariosState.set_novo_email,
@@ -96,6 +102,10 @@ def _formulario() -> rx.Component:
 def usuarios_page() -> rx.Component:
     return page(
         _formulario(),
+        rx.cond(
+            UsuariosState.erro_lista != "",
+            rx.callout(UsuariosState.erro_lista, icon="triangle_alert", color_scheme="red"),
+        ),
         rx.table.root(
             rx.table.header(
                 rx.table.row(

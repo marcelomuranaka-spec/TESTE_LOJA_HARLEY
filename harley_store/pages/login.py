@@ -46,6 +46,107 @@ def _campo(rotulo: str, value: rx.Var, on_change, tipo: str = "text") -> rx.Comp
     )
 
 
+# Botões do diálogo: menores no celular para "Redefinir senha" e "Fechar"
+# caberem lado a lado numa tela estreita sem o texto estourar.
+_TAMANHO_BOTAO = rx.breakpoints(initial="2", md="3")
+
+
+def _dialogo_esqueci_senha() -> rx.Component:
+    """Link "Esqueci minha senha" da aba Entrar + a janela de redefinição.
+
+    É um diálogo (e não uma terceira aba ou outra página) justamente pra
+    não mexer em nada do que já existe: as abas Entrar e Criar conta
+    continuam exatamente como estavam.
+
+    As cores vêm escritas na mão como no resto desta página porque o
+    diálogo é renderizado num portal, fora da árvore do `rx.theme` escuro
+    lá de baixo — sem isso ele apareceria claro no meio da tela preta.
+    """
+    return rx.dialog.root(
+        rx.dialog.trigger(
+            rx.box(
+                rx.text("Esqueci minha senha", size="2", color=LARANJA),
+                width="100%",
+                text_align="center",
+                cursor="pointer",
+                padding_top="0.25rem",
+                _hover={"textDecoration": "underline"},
+            ),
+        ),
+        rx.dialog.content(
+            rx.vstack(
+                rx.heading("Redefinir senha", size=rx.breakpoints(initial="4", md="5"), color="white"),
+                rx.text(
+                    "Informe o email da conta e escolha uma senha nova.",
+                    size="2",
+                    color="#999999",
+                ),
+                _campo("Email da conta", AuthState.rec_email, AuthState.set_rec_email, tipo="email"),
+                _campo("Nova senha", AuthState.rec_senha, AuthState.set_rec_senha, tipo="password"),
+                _campo(
+                    "Confirmar nova senha",
+                    AuthState.rec_confirmar_senha,
+                    AuthState.set_rec_confirmar_senha,
+                    tipo="password",
+                ),
+                rx.cond(
+                    AuthState.rec_erro != "",
+                    rx.text(AuthState.rec_erro, color="#ff6b6b", size="2"),
+                ),
+                rx.cond(
+                    AuthState.rec_sucesso != "",
+                    rx.text(AuthState.rec_sucesso, color="#51cf66", size="2", weight="bold"),
+                ),
+                rx.flex(
+                    rx.dialog.close(
+                        rx.button(
+                            "Fechar",
+                            variant="soft",
+                            color_scheme="gray",
+                            width="100%",
+                            size=_TAMANHO_BOTAO,
+                            type="button",
+                        ),
+                        style={"width": "100%"},
+                    ),
+                    rx.button(
+                        "Redefinir senha",
+                        on_click=AuthState.redefinir_senha,
+                        width="100%",
+                        size=_TAMANHO_BOTAO,
+                        background=LARANJA,
+                        color="white",
+                        type="button",
+                        _hover={"background": LARANJA_ESCURO},
+                    ),
+                    # Sempre lado a lado, inclusive no celular. Os dois têm
+                    # width 100% e dividem a linha meio a meio; o que faz o
+                    # texto caber em tela estreita é o `_TAMANHO_BOTAO`.
+                    direction="row",
+                    spacing="3",
+                    width="100%",
+                    padding_top="0.5rem",
+                ),
+                spacing="3",
+                width="100%",
+                align="start",
+            ),
+            background=PRETO_CARTAO,
+            border=f"1px solid {LARANJA}",
+            width="100%",
+            # No celular ocupa a largura da tela menos uma folga lateral; a
+            # partir de telas médias volta a ser uma caixa de 380px.
+            max_width=["calc(100vw - 1.5rem)", "calc(100vw - 1.5rem)", "380px"],
+            padding=["1.1rem", "1.1rem", "1.5rem"],
+            # Com o teclado aberto sobra pouca altura: rola em vez de cortar.
+            max_height="85vh",
+            overflow_y="auto",
+        ),
+        open=AuthState.recuperacao_aberta,
+        on_open_change=AuthState.alternar_recuperacao,
+    )
+
+
 def _formulario_entrar() -> rx.Component:
     return rx.vstack(
         _campo("Email", AuthState.login_email, AuthState.set_login_email, tipo="email"),
@@ -63,6 +164,7 @@ def _formulario_entrar() -> rx.Component:
             color="white",
             _hover={"background": LARANJA_ESCURO},
         ),
+        _dialogo_esqueci_senha(),
         spacing="3",
         width="100%",
     )
