@@ -1,0 +1,75 @@
+schema: spec-driven
+
+contexto: |
+  Language: pt-BR
+  All artifacts must be written in pt-BR.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Projeto: Harley Store — sistema de gestão de uma loja/oficina de motos
+  (cadastros, vendas de balcão, ordens de serviço, entrada de mercadoria e
+  painel operacional). Usado no balcão da loja e instalado como PWA no iPhone.
+
+  Stack: Reflex 0.7.14 (Python 3.11/3.12/3.13 — nunca 3.14) no servidor e no
+  frontend; dados em um backend Xano acessado por REST com httpx assíncrono
+  (grupos CRUD, Authentication e Admin). SQLModel/Alembic/SQLite ainda existem
+  no repositório, mas são legado e não são usados pelas telas.
+
+  Estrutura: cada tela é o par `harley_store/state/<algo>_state.py` (dados e
+  regras) + `harley_store/pages/<algo>.py` (visual). Rotas em
+  `harley_store/harley_store.py`, menu em `harley_store/components/layout.py`,
+  clientes HTTP em `harley_store/xano_*.py`, backend versionado em `xano/`.
+
+  Convenções obrigatórias: código, comentários e UI em português do Brasil;
+  toda chamada ao Xano é async (chamada bloqueante trava o loop de eventos do
+  Reflex); dados vindos do Xano passam por xano.texto/numero/inteiro/
+  epoch_ms_para_datetime; PATCH do Xano exige o registro completo; toda
+  interface nasce responsiva para celular, e props Responsive do Reflex exigem
+  rx.breakpoints em vez de listas; exclusão sempre com confirmação.
+
+  Restrições conhecidas: plano Free do Xano tem limite de requisições por
+  minuto (o cliente já retenta em 429) e não expõe a Metadata API, então
+  mudanças de esquema são manuais no painel; o token de autenticação ainda não
+  é enviado nas chamadas de dados; não há testes, lint nem CI no repositório.
+
+  Limites de autonomia: o escopo de autenticação (em especial o fluxo de
+  recuperação de senha) é decisão do usuário e não deve ser alterado por
+  iniciativa própria; funcionalidades existentes não podem ser derrubadas para
+  acomodar novas.
+
+  Documentação de referência: AGENTS.md, docs/project-overview.md,
+  docs/domain-model.md e docs/explore/2026-09-16-decomposicao-funcional.md
+  (decomposição funcional, dependências, ordem de implementação e decisões em
+  aberto D1..D12).
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+regras:
+  proposal:
+    - Toda Change deve ter escopo pequeno, vertical (dado -> regra -> API -> tela) e verificável.
+    - Sempre declarar uma seção de fora de escopo ("Non-goals").
+    - Quando a Change depender de alteração manual no workspace Xano, declarar isso explicitamente.
+  design:
+    - Registrar as alternativas consideradas e a consequência de cada uma, não apenas a escolhida.
+    - Apontar quais decisões em aberto (D1..D12 em docs/explore/2026-09-16-decomposicao-funcional.md) a Change resolve ou pressupõe.
+  tasks:
+    - Incluir a tarefa de atualizar docs/domain-model.md sempre que a Change alterar o esquema de dados.
+    - Incluir como verificar a Change (o que rodar ou observar), não só o que implementar.
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
