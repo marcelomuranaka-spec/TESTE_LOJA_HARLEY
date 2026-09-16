@@ -36,41 +36,49 @@ class DashboardState(rx.State):
 
         produtos = await xano.listar("produtos")
         self.total_produtos = len(produtos)
-        self.produtos_estoque_baixo = sum(1 for p in produtos if p["estoque_qtd"] <= LIMITE_ESTOQUE_BAIXO)
+        self.produtos_estoque_baixo = sum(
+            1 for p in produtos if xano.inteiro(p.get("estoque_qtd")) <= LIMITE_ESTOQUE_BAIXO
+        )
 
-        self.total_clientes = len(await xano.listar("clientes"))
+        # A lista de clientes era buscada duas vezes na mesma tela (uma para
+        # o contador, outra para o extrato). Como o plano Free do Xano limita
+        # requisições por minuto, aqui ela é lida uma vez só e reaproveitada.
+        lista_clientes = await xano.listar("clientes")
+        self.total_clientes = len(lista_clientes)
 
         ordens = await xano.listar("ordens_servico")
-        self.os_em_aberto = sum(1 for o in ordens if o["status"] in ("ABERTA", "EM_ANDAMENTO"))
+        self.os_em_aberto = sum(1 for o in ordens if o.get("status") in ("ABERTA", "EM_ANDAMENTO"))
 
         transacoes = await xano.listar("transacoes")
         transacoes_com_data = [
-            (t, xano.epoch_ms_para_datetime(t["data_transacao"])) for t in transacoes
+            (t, xano.epoch_ms_para_datetime(t.get("data_transacao"))) for t in transacoes
         ]
-        self.faturamento_hoje = f"{sum(t['valor_total'] for t, d in transacoes_com_data if d >= inicio_hoje):.2f}"
-        self.faturamento_mes = f"{sum(t['valor_total'] for t, d in transacoes_com_data if d >= inicio_mes):.2f}"
+        total_hoje = sum(xano.numero(t.get("valor_total")) for t, d in transacoes_com_data if d >= inicio_hoje)
+        total_mes = sum(xano.numero(t.get("valor_total")) for t, d in transacoes_com_data if d >= inicio_mes)
+        self.faturamento_hoje = f"{total_hoje:.2f}"
+        self.faturamento_mes = f"{total_mes:.2f}"
 
-        funcionarios = {f["id"]: f["nome_funcionario"] for f in await xano.listar("funcionarios")}
-        clientes = {c["id"]: c["nome_cliente"] for c in await xano.listar("clientes")}
-        fornecedores = {f["id"]: f["nome_fornecedor"] for f in await xano.listar("fornecedores")}
+        funcionarios = {f["id"]: xano.texto(f.get("nome_funcionario")) for f in await xano.listar("funcionarios")}
+        clientes = {c["id"]: xano.texto(c.get("nome_cliente")) for c in lista_clientes}
+        fornecedores = {f["id"]: xano.texto(f.get("nome_fornecedor")) for f in await xano.listar("fornecedores")}
         entradas = await xano.listar("entrada_mercadoria")
 
         atividades = [
             {
                 "origem": "Venda",
-                "tipo": t["tipo_transacao"],
-                "quem": clientes.get(t.get("id_cliente"), funcionarios.get(t["id_funcionario"], "—")),
+                "tipo": xano.texto(t.get("tipo_transacao")),
+                "quem": clientes.get(t.get("id_cliente")) or funcionarios.get(t.get("id_funcionario")) or "—",
                 "data": d,
-                "valor": t["valor_total"],
+                "valor": xano.numero(t.get("valor_total")),
             }
             for t, d in transacoes_com_data
         ] + [
             {
                 "origem": "Compra",
                 "tipo": "ENTRADA ESTOQUE",
-                "quem": fornecedores.get(e["id_fornecedor"], "—"),
-                "data": xano.epoch_ms_para_datetime(e["data_entrada"]),
-                "valor": e["valor_total"],
+                "quem": fornecedores.get(e.get("id_fornecedor")) or "—",
+                "data": xano.epoch_ms_para_datetime(e.get("data_entrada")),
+                "valor": xano.numero(e.get("valor_total")),
             }
             for e in entradas
         ]

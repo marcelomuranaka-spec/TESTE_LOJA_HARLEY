@@ -25,13 +25,13 @@ class ClientesState(rx.State):
         registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
-            registros = [r for r in registros if termo in r["nome_cliente"].lower()]
-        registros = sorted(registros, key=lambda r: r["nome_cliente"])
+            registros = [r for r in registros if termo in xano.texto(r.get("nome_cliente")).lower()]
+        registros = sorted(registros, key=lambda r: xano.texto(r.get("nome_cliente")).lower())
         self.clientes = [
             {
                 "id": str(r["id"]),
-                "nome_cliente": r["nome_cliente"],
-                "cpf_cnpj": r["cpf_cnpj"],
+                "nome_cliente": xano.texto(r.get("nome_cliente")),
+                "cpf_cnpj": xano.texto(r.get("cpf_cnpj")),
                 "telefone": r.get("telefone") or "—",
                 "email": r.get("email") or "—",
                 "endereco": r.get("endereco") or "—",

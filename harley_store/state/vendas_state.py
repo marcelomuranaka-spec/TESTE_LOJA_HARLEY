@@ -56,32 +56,50 @@ class VendasState(rx.State):
 
     @rx.event
     async def carregar(self):
-        funcionarios = sorted(await xano.listar(TABELA_FUNCIONARIOS), key=lambda f: f["nome_funcionario"])
-        clientes = sorted(await xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
-        motos = sorted(await xano.listar(TABELA_MOTOS), key=lambda m: m["modelo"])
-        produtos = sorted(await xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
+        funcionarios = sorted(
+            await xano.listar(TABELA_FUNCIONARIOS), key=lambda f: xano.texto(f.get("nome_funcionario")).lower()
+        )
+        clientes = sorted(
+            await xano.listar(TABELA_CLIENTES), key=lambda c: xano.texto(c.get("nome_cliente")).lower()
+        )
+        motos = sorted(await xano.listar(TABELA_MOTOS), key=lambda m: xano.texto(m.get("modelo")).lower())
+        produtos = sorted(
+            await xano.listar(TABELA_PRODUTOS), key=lambda p: xano.texto(p.get("nome_produto")).lower()
+        )
 
-        self.funcionarios_opcoes = [f"{f['id']} - {f['nome_funcionario']}" for f in funcionarios]
-        self.clientes_opcoes = [SEM_CLIENTE] + [f"{c['id']} - {c['nome_cliente']}" for c in clientes]
-        self.motos_opcoes = [SEM_MOTO] + [f"{m['id']} - {m['modelo']} ({m['placa']})" for m in motos]
+        self.funcionarios_opcoes = [f"{f['id']} - {xano.texto(f.get('nome_funcionario'))}" for f in funcionarios]
+        self.clientes_opcoes = [SEM_CLIENTE] + [
+            f"{c['id']} - {xano.texto(c.get('nome_cliente'))}" for c in clientes
+        ]
+        self.motos_opcoes = [SEM_MOTO] + [
+            f"{m['id']} - {xano.texto(m.get('modelo'))} ({xano.texto(m.get('placa'))})" for m in motos
+        ]
         self.produtos_opcoes = [SEM_PRODUTO] + [
-            f"{p['id']} - {p['nome_produto']} — estoque {p['estoque_qtd']} — R$ {p['preco_venda']:.2f}"
+            f"{p['id']} - {xano.texto(p.get('nome_produto'))}"
+            f" — estoque {xano.inteiro(p.get('estoque_qtd'))}"
+            f" — R$ {xano.numero(p.get('preco_venda')):.2f}"
             for p in produtos
         ]
 
-        nomes_funcionario = {f["id"]: f["nome_funcionario"] for f in funcionarios}
-        nomes_cliente = {c["id"]: c["nome_cliente"] for c in clientes}
+        nomes_funcionario = {f["id"]: xano.texto(f.get("nome_funcionario")) for f in funcionarios}
+        nomes_cliente = {c["id"]: xano.texto(c.get("nome_cliente")) for c in clientes}
 
-        registros = sorted(await xano.listar(TABELA), key=lambda t: t["data_transacao"], reverse=True)[:50]
+        # Ordenar pela data já convertida: o campo pode vir nulo (e comparar
+        # None com número levanta TypeError no sorted()).
+        registros = sorted(
+            await xano.listar(TABELA),
+            key=lambda t: xano.epoch_ms_para_datetime(t.get("data_transacao")),
+            reverse=True,
+        )[:50]
 
         self.transacoes = [
             {
                 "id": str(t["id"]),
-                "tipo_transacao": t["tipo_transacao"],
-                "funcionario_nome": nomes_funcionario.get(t["id_funcionario"], "—"),
-                "cliente_nome": nomes_cliente.get(t["id_cliente"], "—") if t.get("id_cliente") else "—",
-                "data_transacao": xano.epoch_ms_para_datetime(t["data_transacao"]).strftime("%d/%m/%Y %H:%M"),
-                "valor_total": f"{t['valor_total']:.2f}",
+                "tipo_transacao": xano.texto(t.get("tipo_transacao")),
+                "funcionario_nome": nomes_funcionario.get(t.get("id_funcionario")) or "—",
+                "cliente_nome": (nomes_cliente.get(t.get("id_cliente")) or "—") if t.get("id_cliente") else "—",
+                "data_transacao": xano.epoch_ms_para_datetime(t.get("data_transacao")).strftime("%d/%m/%Y %H:%M"),
+                "valor_total": f"{xano.numero(t.get('valor_total')):.2f}",
             }
             for t in registros
         ]
@@ -113,7 +131,7 @@ class VendasState(rx.State):
             return
         produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
         if produto:
-            self.valor_total = f"{produto['preco_venda'] * qtd:.2f}"
+            self.valor_total = f"{xano.numero(produto.get('preco_venda')) * qtd:.2f}"
 
     @rx.event
     def nova_venda(self):
@@ -154,11 +172,13 @@ class VendasState(rx.State):
             produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
             if produto is None:
                 return rx.window_alert("Produto não encontrado.")
-            if produto["estoque_qtd"] < quantidade:
+            estoque_atual = xano.inteiro(produto.get("estoque_qtd"))
+            if estoque_atual < quantidade:
                 return rx.window_alert(
-                    f"Estoque insuficiente: só há {produto['estoque_qtd']} unidade(s) de {produto['nome_produto']}."
+                    f"Estoque insuficiente: só há {estoque_atual} unidade(s)"
+                    f" de {xano.texto(produto.get('nome_produto'))}."
                 )
-            produto["estoque_qtd"] -= quantidade
+            produto["estoque_qtd"] = estoque_atual - quantidade
             await xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
 
         await xano.criar(

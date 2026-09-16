@@ -31,13 +31,15 @@ class FornecedoresState(rx.State):
         registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
-            registros = [r for r in registros if termo in r["nome_fornecedor"].lower()]
-        registros = sorted(registros, key=lambda r: r["nome_fornecedor"])
+            registros = [r for r in registros if termo in xano.texto(r.get("nome_fornecedor")).lower()]
+        # `xano.texto()` em toda leitura da API: um campo nulo no Xano fazia
+        # o sort levantar TypeError e a busca levantar AttributeError.
+        registros = sorted(registros, key=lambda r: xano.texto(r.get("nome_fornecedor")).lower())
         self.fornecedores = [
             {
                 "id": str(r["id"]),
-                "nome_fornecedor": r["nome_fornecedor"],
-                "cnpj": r["cnpj"],
+                "nome_fornecedor": xano.texto(r.get("nome_fornecedor")),
+                "cnpj": xano.texto(r.get("cnpj")),
                 "contato": r.get("contato") or "—",
             }
             for r in registros

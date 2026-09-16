@@ -40,25 +40,28 @@ class MotosState(rx.State):
 
     @rx.event
     async def carregar(self):
-        clientes = sorted(await xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
-        self.clientes_opcoes = [f"{c['id']} - {c['nome_cliente']}" for c in clientes]
-        nomes_por_id = {c["id"]: c["nome_cliente"] for c in clientes}
+        clientes = sorted(
+            await xano.listar(TABELA_CLIENTES), key=lambda c: xano.texto(c.get("nome_cliente")).lower()
+        )
+        self.clientes_opcoes = [f"{c['id']} - {xano.texto(c.get('nome_cliente'))}" for c in clientes]
+        nomes_por_id = {c["id"]: xano.texto(c.get("nome_cliente")) for c in clientes}
 
         registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
             registros = [
                 r for r in registros
-                if termo in r["modelo"].lower() or termo in r["placa"].lower()
+                if termo in xano.texto(r.get("modelo")).lower()
+                or termo in xano.texto(r.get("placa")).lower()
             ]
-        registros = sorted(registros, key=lambda r: r["modelo"])
+        registros = sorted(registros, key=lambda r: xano.texto(r.get("modelo")).lower())
 
         self.motos = [
             {
                 "id": str(r["id"]),
-                "modelo": r["modelo"],
-                "placa": r["placa"],
-                "chassi": r["chassi"],
+                "modelo": xano.texto(r.get("modelo")),
+                "placa": xano.texto(r.get("placa")),
+                "chassi": xano.texto(r.get("chassi")),
                 "id_cliente": str(r["id_cliente"]),
                 "cliente_nome": nomes_por_id.get(r["id_cliente"], "(cliente removido)"),
                 "imagem": r.get("imagem") or "",
@@ -126,16 +129,24 @@ class MotosState(rx.State):
 
         cliente_selecionado = self.cliente_selecionado
         if not cliente_selecionado:
-            clientes_existentes = sorted(await xano.listar(TABELA_CLIENTES), key=lambda c: c["nome_cliente"])
+            clientes_existentes = sorted(
+                await xano.listar(TABELA_CLIENTES), key=lambda c: xano.texto(c.get("nome_cliente")).lower()
+            )
             if not clientes_existentes:
                 return rx.window_alert("Cadastre um cliente antes de cadastrar a moto dele.")
             primeiro_cliente = clientes_existentes[0]
-            cliente_selecionado = f"{primeiro_cliente['id']} - {primeiro_cliente['nome_cliente']}"
+            cliente_selecionado = f"{primeiro_cliente['id']} - {xano.texto(primeiro_cliente.get('nome_cliente'))}"
 
-        id_cliente = int(cliente_selecionado.split(" - ")[0])
+        try:
+            id_cliente = int(cliente_selecionado.split(" - ")[0])
+        except ValueError:
+            # A opção do select sempre começa com o id ("7 - João"); se vier
+            # em outro formato, avisa em vez de derrubar o event handler.
+            return rx.window_alert("Selecione o cliente dono da moto.")
 
         duplicado = any(
-            (r["placa"] == placa or r["chassi"] == chassi) and str(r["id"]) != str(self.form_id)
+            (xano.texto(r.get("placa")) == placa or xano.texto(r.get("chassi")) == chassi)
+            and str(r["id"]) != str(self.form_id)
             for r in await xano.listar(TABELA)
         )
         if duplicado:

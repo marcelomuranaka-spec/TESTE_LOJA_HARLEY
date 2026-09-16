@@ -41,18 +41,28 @@ class ComprasState(rx.State):
 
     @rx.event
     async def carregar(self):
-        fornecedores = sorted(await xano.listar(TABELA_FORNECEDORES), key=lambda f: f["nome_fornecedor"])
-        produtos = sorted(await xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
-        self.fornecedores_opcoes = [f"{f['id']} - {f['nome_fornecedor']}" for f in fornecedores]
-        self.produtos_opcoes = [f"{p['id']} - {p['nome_produto']}" for p in produtos]
+        fornecedores = sorted(
+            await xano.listar(TABELA_FORNECEDORES), key=lambda f: xano.texto(f.get("nome_fornecedor")).lower()
+        )
+        produtos = sorted(
+            await xano.listar(TABELA_PRODUTOS), key=lambda p: xano.texto(p.get("nome_produto")).lower()
+        )
+        self.fornecedores_opcoes = [f"{f['id']} - {xano.texto(f.get('nome_fornecedor'))}" for f in fornecedores]
+        self.produtos_opcoes = [f"{p['id']} - {xano.texto(p.get('nome_produto'))}" for p in produtos]
         if not self.fornecedor_selecionado and self.fornecedores_opcoes:
             self.fornecedor_selecionado = self.fornecedores_opcoes[0]
         if not self.item_produto_selecionado and self.produtos_opcoes:
             self.item_produto_selecionado = self.produtos_opcoes[0]
 
-        nomes_fornecedor = {f["id"]: f["nome_fornecedor"] for f in fornecedores}
+        nomes_fornecedor = {f["id"]: xano.texto(f.get("nome_fornecedor")) for f in fornecedores}
 
-        entradas = sorted(await xano.listar(TABELA_ENTRADA), key=lambda e: e["data_entrada"], reverse=True)[:30]
+        # Ordenar pela data já convertida: o campo pode vir nulo, e comparar
+        # None com número levanta TypeError dentro do sorted().
+        entradas = sorted(
+            await xano.listar(TABELA_ENTRADA),
+            key=lambda e: xano.epoch_ms_para_datetime(e.get("data_entrada")),
+            reverse=True,
+        )[:30]
         qtd_itens_por_entrada: dict[int, int] = {}
         for item in await xano.listar(TABELA_ITENS):
             qtd_itens_por_entrada[item["id_entrada"]] = qtd_itens_por_entrada.get(item["id_entrada"], 0) + 1
@@ -60,9 +70,9 @@ class ComprasState(rx.State):
         self.historico = [
             {
                 "id": str(e["id"]),
-                "data_entrada": xano.epoch_ms_para_datetime(e["data_entrada"]).strftime("%d/%m/%Y %H:%M"),
-                "fornecedor_nome": nomes_fornecedor.get(e["id_fornecedor"], "—"),
-                "valor_total": f"{e['valor_total']:.2f}",
+                "data_entrada": xano.epoch_ms_para_datetime(e.get("data_entrada")).strftime("%d/%m/%Y %H:%M"),
+                "fornecedor_nome": nomes_fornecedor.get(e.get("id_fornecedor")) or "—",
+                "valor_total": f"{xano.numero(e.get('valor_total')):.2f}",
                 "qtd_itens": str(qtd_itens_por_entrada.get(e["id"], 0)),
             }
             for e in entradas
@@ -118,6 +128,11 @@ class ComprasState(rx.State):
             },
         )
 
+        # Sem o id do cabeçalho não dá pra gravar os itens: avisar em vez
+        # de levantar KeyError no meio da gravação.
+        if not isinstance(entrada, dict) or entrada.get("id") is None:
+            return rx.window_alert("Não foi possível registrar a compra. Tente novamente.")
+
         for item in self.itens_atual:
             produto_id = int(item["produto_id"])
             quantidade = int(item["quantidade"])
@@ -134,7 +149,7 @@ class ComprasState(rx.State):
             )
             produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
             if produto is not None:
-                produto["estoque_qtd"] += quantidade
+                produto["estoque_qtd"] = xano.inteiro(produto.get("estoque_qtd")) + quantidade
                 await xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
 
         self.itens_atual = []
@@ -144,8 +159,9 @@ class ComprasState(rx.State):
     async def excluir_entrada(self, entrada_id: str):
         # Exclui o cabeçalho e os itens da compra. Não desfaz o estoque que
         # já entrou — ajuste manualmente na página Produtos se necessário.
+        id_entrada = int(entrada_id)
         for item in await xano.listar(TABELA_ITENS):
-            if item["id_entrada"] == int(entrada_id):
+            if item.get("id_entrada") == id_entrada:
                 await xano.excluir(TABELA_ITENS, item["id"])
-        await xano.excluir(TABELA_ENTRADA, int(entrada_id))
+        await xano.excluir(TABELA_ENTRADA, id_entrada)
         await self.carregar()

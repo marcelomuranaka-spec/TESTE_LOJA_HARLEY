@@ -33,17 +33,21 @@ class OrdensServicoState(rx.State):
 
     @rx.event
     async def carregar(self):
-        motos = sorted(await xano.listar(TABELA_MOTOS), key=lambda m: m["modelo"])
+        motos = sorted(await xano.listar(TABELA_MOTOS), key=lambda m: xano.texto(m.get("modelo")).lower())
         todos_funcionarios = await xano.listar(TABELA_FUNCIONARIOS)
         mecanicos = sorted(
-            [f for f in todos_funcionarios if f["tipo"] == "MECANICO"],
-            key=lambda f: f["nome_funcionario"],
+            [f for f in todos_funcionarios if f.get("tipo") == "MECANICO"],
+            key=lambda f: xano.texto(f.get("nome_funcionario")).lower(),
         )
-        produtos = sorted(await xano.listar(TABELA_PRODUTOS), key=lambda p: p["nome_produto"])
+        produtos = sorted(
+            await xano.listar(TABELA_PRODUTOS), key=lambda p: xano.texto(p.get("nome_produto")).lower()
+        )
 
-        self.motos_opcoes = [f"{m['id']} - {m['modelo']} ({m['placa']})" for m in motos]
-        self.mecanicos_opcoes = [f"{f['id']} - {f['nome_funcionario']}" for f in mecanicos]
-        self.produtos_opcoes = [f"{p['id']} - {p['nome_produto']}" for p in produtos]
+        self.motos_opcoes = [
+            f"{m['id']} - {xano.texto(m.get('modelo'))} ({xano.texto(m.get('placa'))})" for m in motos
+        ]
+        self.mecanicos_opcoes = [f"{f['id']} - {xano.texto(f.get('nome_funcionario'))}" for f in mecanicos]
+        self.produtos_opcoes = [f"{p['id']} - {xano.texto(p.get('nome_produto'))}" for p in produtos]
         if not self.moto_selecionada and self.motos_opcoes:
             self.moto_selecionada = self.motos_opcoes[0]
         if not self.mecanico_selecionado and self.mecanicos_opcoes:
@@ -51,24 +55,31 @@ class OrdensServicoState(rx.State):
         if not self.item_produto_selecionado and self.produtos_opcoes:
             self.item_produto_selecionado = self.produtos_opcoes[0]
 
-        nomes_moto = {m["id"]: f"{m['modelo']} ({m['placa']})" for m in motos}
+        nomes_moto = {
+            m["id"]: f"{xano.texto(m.get('modelo'))} ({xano.texto(m.get('placa'))})" for m in motos
+        }
         # também pode haver mecânicos já cadastrados com outro tipo em OS antigas
-        nomes_mecanico = {f["id"]: f["nome_funcionario"] for f in todos_funcionarios}
+        nomes_mecanico = {f["id"]: xano.texto(f.get("nome_funcionario")) for f in todos_funcionarios}
 
-        registros = sorted(await xano.listar(TABELA_OS), key=lambda o: o["data_abertura"], reverse=True)[:30]
+        registros = sorted(
+            await xano.listar(TABELA_OS),
+            key=lambda o: xano.epoch_ms_para_datetime(o.get("data_abertura")),
+            reverse=True,
+        )[:30]
         qtd_itens_por_os: dict[int, int] = {}
         valor_por_os: dict[int, float] = {}
         for item in await xano.listar(TABELA_ITENS):
-            qtd_itens_por_os[item["id_os"]] = qtd_itens_por_os.get(item["id_os"], 0) + 1
-            valor_por_os[item["id_os"]] = valor_por_os.get(item["id_os"], 0.0) + item["valor_total_item"]
+            id_os = item.get("id_os")
+            qtd_itens_por_os[id_os] = qtd_itens_por_os.get(id_os, 0) + 1
+            valor_por_os[id_os] = valor_por_os.get(id_os, 0.0) + xano.numero(item.get("valor_total_item"))
 
         self.ordens = [
             {
                 "id": str(o["id"]),
-                "data_abertura": xano.epoch_ms_para_datetime(o["data_abertura"]).strftime("%d/%m/%Y %H:%M"),
-                "moto_nome": nomes_moto.get(o["id_moto_cliente"], "—"),
-                "mecanico_nome": nomes_mecanico.get(o["id_funcionario"], "—"),
-                "status": o["status"],
+                "data_abertura": xano.epoch_ms_para_datetime(o.get("data_abertura")).strftime("%d/%m/%Y %H:%M"),
+                "moto_nome": nomes_moto.get(o.get("id_moto_cliente")) or "—",
+                "mecanico_nome": nomes_mecanico.get(o.get("id_funcionario")) or "—",
+                "status": xano.texto(o.get("status")),
                 "qtd_itens": str(qtd_itens_por_os.get(o["id"], 0)),
                 "valor_total": f"{valor_por_os.get(o['id'], 0.0):.2f}",
             }
@@ -125,6 +136,9 @@ class OrdensServicoState(rx.State):
             },
         )
 
+        if not isinstance(os_nova, dict) or os_nova.get("id") is None:
+            return rx.window_alert("Não foi possível abrir a ordem de serviço. Tente novamente.")
+
         for item in self.itens_atual:
             produto_id = int(item["produto_id"])
             quantidade = int(item["quantidade"])
@@ -141,7 +155,7 @@ class OrdensServicoState(rx.State):
             )
             produto = await xano.buscar(TABELA_PRODUTOS, produto_id)
             if produto is not None:
-                produto["estoque_qtd"] = max(0, produto["estoque_qtd"] - quantidade)
+                produto["estoque_qtd"] = max(0, xano.inteiro(produto.get("estoque_qtd")) - quantidade)
                 await xano.atualizar(TABELA_PRODUTOS, produto_id, {k: v for k, v in produto.items() if k != "id"})
 
         self.itens_atual = []
@@ -157,8 +171,9 @@ class OrdensServicoState(rx.State):
 
     @rx.event
     async def excluir_os(self, os_id: str):
+        id_os = int(os_id)
         for item in await xano.listar(TABELA_ITENS):
-            if item["id_os"] == int(os_id):
+            if item.get("id_os") == id_os:
                 await xano.excluir(TABELA_ITENS, item["id"])
-        await xano.excluir(TABELA_OS, int(os_id))
+        await xano.excluir(TABELA_OS, id_os)
         await self.carregar()

@@ -35,22 +35,24 @@ class ProdutosState(rx.State):
         registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
-            registros = [r for r in registros if termo in r["nome_produto"].lower()]
+            registros = [r for r in registros if termo in xano.texto(r.get("nome_produto")).lower()]
 
         if self.somente_estoque_baixo:
-            registros = [r for r in registros if r["estoque_qtd"] <= LIMITE_ESTOQUE_BAIXO]
+            registros = [r for r in registros if xano.inteiro(r.get("estoque_qtd")) <= LIMITE_ESTOQUE_BAIXO]
 
-        registros = sorted(registros, key=lambda r: r["nome_produto"])
+        registros = sorted(registros, key=lambda r: xano.texto(r.get("nome_produto")).lower())
 
+        # Converter tudo por `xano.texto`/`inteiro`/`numero`: um campo nulo
+        # vindo do Xano quebrava a ordenação, a busca e a formatação do preço.
         self.produtos = [
             {
                 "id": str(r["id"]),
-                "nome_produto": r["nome_produto"],
+                "nome_produto": xano.texto(r.get("nome_produto")),
                 "descricao": r.get("descricao") or "—",
-                "categoria": r["categoria"],
-                "estoque_qtd": str(r["estoque_qtd"]),
-                "preco_venda": f"{r['preco_venda']:.2f}",
-                "estoque_baixo": r["estoque_qtd"] <= LIMITE_ESTOQUE_BAIXO,
+                "categoria": xano.texto(r.get("categoria")),
+                "estoque_qtd": str(xano.inteiro(r.get("estoque_qtd"))),
+                "preco_venda": f"{xano.numero(r.get('preco_venda')):.2f}",
+                "estoque_baixo": xano.inteiro(r.get("estoque_qtd")) <= LIMITE_ESTOQUE_BAIXO,
                 "imagem": r.get("imagem") or "",
             }
             for r in registros

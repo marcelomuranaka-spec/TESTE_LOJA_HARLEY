@@ -44,15 +44,34 @@ _MAX_TENTATIVAS = 5
 _ESPERA_BASE_SEGUNDOS = 1.5
 
 
+def _segundos_de_espera(resposta: httpx.Response, tentativa: int) -> float:
+    """Quanto esperar antes de repetir uma chamada que voltou 429.
+
+    O cabeçalho `Retry-After` pode vir como número de segundos OU como data
+    HTTP ("Wed, 21 Oct 2015 07:28:00 GMT"). Converter direto com `float()`
+    quebrava nesse segundo caso — aqui qualquer valor não numérico cai na
+    espera crescente padrão.
+    """
+    try:
+        espera = float(resposta.headers.get("Retry-After", ""))
+    except ValueError:
+        espera = 0.0
+    if espera <= 0:
+        espera = _ESPERA_BASE_SEGUNDOS * (2**tentativa)
+    return min(espera, 20)
+
+
 async def _request(metodo: str, url: str, **kwargs) -> httpx.Response:
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        for tentativa in range(_MAX_TENTATIVAS):
-            resposta = await client.request(metodo, url, **kwargs)
+        resposta = await client.request(metodo, url, **kwargs)
+        # A espera só faz sentido ENTRE duas tentativas: esperar depois da
+        # última só atrasava a resposta de erro que já ia ser devolvida.
+        for tentativa in range(_MAX_TENTATIVAS - 1):
             if resposta.status_code != 429:
                 return resposta
-            espera = float(resposta.headers.get("Retry-After", 0)) or _ESPERA_BASE_SEGUNDOS * (2**tentativa)
-            await asyncio.sleep(min(espera, 20))
-    return resposta
+            await asyncio.sleep(_segundos_de_espera(resposta, tentativa))
+            resposta = await client.request(metodo, url, **kwargs)
+        return resposta
 
 
 async def listar(tabela: str) -> list[dict]:
@@ -88,10 +107,55 @@ async def excluir(tabela: str, registro_id: int) -> None:
     resposta.raise_for_status()
 
 
-def epoch_ms_para_datetime(valor: int | float | None) -> datetime.datetime:
+def epoch_ms_para_datetime(valor: int | float | str | None) -> datetime.datetime:
+    """Converte a data do Xano (epoch em milissegundos) para datetime.
+
+    Aceita também string — um campo configurado como `timestamp` no Xano
+    pode voltar como texto ISO ou como número dentro de aspas, e nesses
+    casos a divisão por 1000 levantava TypeError e derrubava a tela.
+    """
     if not valor:
         return datetime.datetime.now()
-    return datetime.datetime.fromtimestamp(valor / 1000)
+    if isinstance(valor, str):
+        try:
+            convertido = datetime.datetime.fromisoformat(valor.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+        else:
+            # Sempre devolver datetime "ingênuo" (sem fuso): o resto do app
+            # compara essas datas com datetime.now(), e misturar com/sem
+            # fuso levanta TypeError.
+            if convertido.tzinfo is not None:
+                convertido = convertido.astimezone().replace(tzinfo=None)
+            return convertido
+    try:
+        return datetime.datetime.fromtimestamp(float(valor) / 1000)
+    except (TypeError, ValueError, OSError, OverflowError):
+        return datetime.datetime.now()
+
+
+def texto(valor: object) -> str:
+    """Campo de texto vindo do Xano: nulo vira string vazia.
+
+    Usar isto ao ordenar, filtrar ou exibir campos da API. Sem isso, um
+    registro com o campo nulo derruba a tela inteira: comparar None com
+    str levanta TypeError em `sorted()` e `None.lower()` levanta
+    AttributeError na busca.
+    """
+    return "" if valor is None else str(valor)
+
+
+def numero(valor: object) -> float:
+    """Campo numérico vindo do Xano: nulo ou inválido vira 0.0."""
+    try:
+        return float(valor)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def inteiro(valor: object) -> int:
+    """Campo inteiro vindo do Xano: nulo ou inválido vira 0."""
+    return int(numero(valor))
 
 
 def datetime_para_epoch_ms(valor: datetime.datetime | None = None) -> int:

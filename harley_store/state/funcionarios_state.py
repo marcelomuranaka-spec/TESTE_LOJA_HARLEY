@@ -25,14 +25,14 @@ class FuncionariosState(rx.State):
         registros = await xano.listar(TABELA)
         if self.busca.strip():
             termo = self.busca.strip().lower()
-            registros = [r for r in registros if termo in r["nome_funcionario"].lower()]
-        registros = sorted(registros, key=lambda r: r["nome_funcionario"])
+            registros = [r for r in registros if termo in xano.texto(r.get("nome_funcionario")).lower()]
+        registros = sorted(registros, key=lambda r: xano.texto(r.get("nome_funcionario")).lower())
         self.funcionarios = [
             {
                 "id": str(r["id"]),
-                "nome_funcionario": r["nome_funcionario"],
-                "cargo": r["cargo"],
-                "tipo": r["tipo"],
+                "nome_funcionario": xano.texto(r.get("nome_funcionario")),
+                "cargo": xano.texto(r.get("cargo")),
+                "tipo": xano.texto(r.get("tipo")),
                 "contato": r.get("contato") or "—",
             }
             for r in registros
